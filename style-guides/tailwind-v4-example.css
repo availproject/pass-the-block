@@ -1,0 +1,179 @@
+/* styles/tailwind.css */
+@import "tailwindcss";
+
+@variant dark (&:where(.dark *));
+
+/* Font Declarations */
+@font-face {
+    font-family: 'THICCCBOI';
+    src: url('/fonts/THICCCBOI-Bold.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'THICCCBOI';
+    src: url('/fonts/THICCCBOI-Medium.woff2') format('woff2');
+    font-weight: 500;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'THICCCBOI';
+    src: url('/fonts/THICCCBOI-SemiBold.woff2') format('woff2');
+    font-weight: 600;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'THICCCBOI';
+    src: url('/fonts/THICCCBOI-Regular.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+}
+
+@theme {
+    /* Font Family Variables */
+    --font-thicccboi: 'THICCCBOI', sans-serif;
+    
+    /* Color Definitions */
+    /* Utility Colors */
+    --color-utility-white: #FFFFFF;
+    --color-utility-lightest: #D0E5FF;
+    --color-utility-dark: #1E2129;
+    --color-utility-slate: #383C4D;
+    --color-utility-gray: #4E6786;
+
+    /* Brand Colors - Purple */
+    --color-brand-purple: #EDC7FC;
+    --color-brand-purple-light: #F9F2FC;
+    --color-brand-purple-dark: #A764D5;
+    --color-brand-purple-100: #F9F2FC;
+    --color-brand-purple-200: #F3E5FA;
+    --color-brand-purple-300: #EDC7FC;
+    --color-brand-purple-400: #DCA6F8;
+    --color-brand-purple-500: #C585F4;
+    --color-brand-purple-600: #B775E9;
+    --color-brand-purple-700: #A764D5;
+    --color-brand-purple-800: #8F4DB8;
+    --color-brand-purple-900: #6B3489;
+
+    /* Brand Colors - Blue */
+    --color-brand-blue: #3CA3FC;
+    --color-brand-blue-light: #F5FAFF;
+    --color-brand-blue-dark: #0B5394;
+    --color-brand-blue-100: #F5FAFF;
+    --color-brand-blue-200: #E5F3FF;
+    --color-brand-blue-300: #BCE3FE;
+    --color-brand-blue-400: #8CCDFD;
+    --color-brand-blue-500: #3CA3FC;
+    --color-brand-blue-600: #2B8DE0;
+    --color-brand-blue-700: #1A77C4;
+    --color-brand-blue-800: #0B5394;
+    --color-brand-blue-900: #063A69;
+
+    /* Brand Colors - Light Blue */
+    --color-brand-lightblue: #58C8F6;
+    --color-brand-lightblue-light: #F5FBFF;
+    --color-brand-lightblue-dark: #0B6FA4;
+    --color-brand-lightblue-100: #F5FBFF;
+    --color-brand-lightblue-200: #E5F6FF;
+    --color-brand-lightblue-300: #BCE9FD;
+    --color-brand-lightblue-400: #8CD8FB;
+    --color-brand-lightblue-500: #58C8F6;
+    --color-brand-lightblue-600: #2B9FE0;
+    --color-brand-lightblue-700: #1A87C4;
+    --color-brand-lightblue-800: #0B6FA4;
+    --color-brand-lightblue-900: #064569;
+
+    /* Brand Colors - Mint */
+    --color-brand-mint: #44D5DE;
+    --color-brand-mint-light: #F5FCFD;
+    --color-brand-mint-dark: #0B858C;
+    --color-brand-mint-100: #F5FCFD;
+    --color-brand-mint-200: #E5F8FA;
+    --color-brand-mint-300: #BCE9EC;
+    --color-brand-mint-400: #8CDFDF;
+    --color-brand-mint-500: #44D5DE;
+    --color-brand-mint-600: #2BAAB3;
+    --color-brand-mint-700: #1A979F;
+    --color-brand-mint-800: #0B858C;
+    --color-brand-mint-900: #065459;
+
+    /* Brand Colors - Pink */
+    --color-brand-pink: #FEC7C7;
+    --color-brand-pink-light: #FFF5F5;
+    --color-brand-pink-dark: #B85757;
+    --color-brand-pink-100: #FFF5F5;
+    --color-brand-pink-200: #FEEBEB;
+    --color-brand-pink-300: #FED6D6;
+    --color-brand-pink-400: #FEC7C7;
+    --color-brand-pink-500: #E3A2A2;
+    --color-brand-pink-600: #D18585;
+    --color-brand-pink-700: #B85757;
+    --color-brand-pink-800: #8C3838;
+    --color-brand-pink-900: #591C1C;
+
+    /* Accent Colors */
+    --color-accent-yellow: #FBC75D;
+    --color-accent-coral: #FE8B6C;
+    --color-accent-green: #5FD39C;
+    --color-accent-lavender: #EB7BF4;
+}
+
+/* Font Family Utilities */
+@utility font {
+    &-thicccboi {
+        font-family: var(--font-thicccboi);
+    }
+}
+
+/* Font Weight Utilities for THICCCBOI */
+@utility font {
+    &-regular {
+        font-weight: 400;
+    }
+    &-medium {
+        font-weight: 500;
+    }
+    &-semibold {
+        font-weight: 600;
+    }
+    &-bold {
+        font-weight: 700;
+    }
+}
+
+/* Custom utility registration for utility colors */
+@utility text-utility {
+    &-white { color: var(--color-utility-white); }
+    &-lightest { color: var(--color-utility-lightest); }
+    &-dark { color: var(--color-utility-dark); }
+    &-slate { color: var(--color-utility-slate); }
+    &-gray { color: var(--color-utility-gray); }
+}
+
+@utility bg-utility {
+    &-white { background-color: var(--color-utility-white); }
+    &-lightest { background-color: var(--color-utility-lightest); }
+    &-dark { background-color: var(--color-utility-dark); }
+    &-slate { background-color: var(--color-utility-slate); }
+    &-gray { background-color: var(--color-utility-gray); }
+}
+
+/* No Hover Utility */
+@utility no-hover {
+    &:hover {
+        background: initial;
+        color: inherit;
+    }
+}
+
+/* Card Background Utility */
+@utility card {
+    &-background {
+        border-image-source: linear-gradient(139.26deg, rgba(255, 255, 255, 0.8) -0.73%, rgba(234, 241, 251, 0.8) 100.78%);
+        box-shadow: 0px 4px 88px -16px #59789E52;
+        border-radius: 24px;
+    }
+}
