@@ -80,6 +80,19 @@ For the most up to date information on logos, colors, fonts, and other brand gui
 |:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
 | <a href='#'><img valign='middle' src='https://readme-swatches.vercel.app/FFF5F5?style=round&size=70'/></a> <br/> #FFF5F5 | <a href='#'><img valign='middle' src='https://readme-swatches.vercel.app/FEEBEB?style=round&size=70'/></a> <br/> #FEEBEB | <a href='#'><img valign='middle' src='https://readme-swatches.vercel.app/FED6D6?style=round&size=70'/></a> <br/> #FED6D6 | <a href='#'><img valign='middle' src='https://readme-swatches.vercel.app/FEC7C7?style=round&size=70'/></a> <br/> #FEC7C7 | <a href='#'><img valign='middle' src='https://readme-swatches.vercel.app/E3A2A2?style=round&size=70'/></a> <br/> #E3A2A2 | <a href='#'><img valign='middle' src='https://readme-swatches.vercel.app/D18585?style=round&size=70'/></a> <br/> #D18585 | <a href='#'><img valign='middle' src='https://readme-swatches.vercel.app/B85757?style=round&size=70'/></a> <br/> #B85757 | <a href='#'><img valign='middle' src='https://readme-swatches.vercel.app/8C3838?style=round&size=70'/></a> <br/> #8C3838 | <a href='#'><img valign='middle' src='https://readme-swatches.vercel.app/591C1C?style=round&size=70'/></a> <br/> #591C1C |
 
+## Logo
+| Type | Preview |
+|:--:|:--:|
+| Icon | <a href='#'><img valign='middle' src="images/avail_logo_icon3x-1.svg" height="50"/></a> |
+| Dark Horizontal | <a href='#'><img valign='middle' src="images/avail_logo_horizontal_dark3x.svg" height="50"/></a> |
+| Light Horizontal | <a href='#'><img valign='middle' src="images/avail_logo_horizontal_light3x.svg" height="50"/></a> |
+| Dark Solid Horizontal | <a href='#'><img valign='middle' src="images/avail_logo_horizontal_dark_solid3x.svg" height="50"/></a> |
+| Light Solid Horizontal | <a href='#'><img valign='middle' src="images/avail_logo_horizontal_light_solid3x.svg" height="50"/></a> |
+| Dark Vertical | <a href='#'><img valign='middle' src="images/avail_logo_vertical_dark3x.svg" height="100"/></a> |
+| Light Vertical | <a href='#'><img valign='middle' src="images/avail_logo_vertical_light3x.svg" height="100"/></a> |
+| Dark Solid Vertical | <a href='#'><img valign='middle' src="images/avail_logo_vertical_dark_solid3x.svg" height="100"/></a> |
+| Light Solid Vertical | <a href='#'><img valign='middle' src="images/avail_logo_vertical_light_solid3x.svg" height="100"/></a> |
+
 ## Typography
 
 | Usage | Font | Download Link | Github |
