@@ -12,7 +12,7 @@ Your first project: Build a decentralized notes app using Next.js and Avail Ligh
 - 🎨 Crafting smooth user interactions
 - 🛡️ Implementing rock-solid error handling
 
-Ready to dive in? [Start Building](https://blog.availproject.org/p/9f596a5e-954f-4001-9351-9a859905cb75)
+Ready to dive in? [Start Building](https://blog.availproject.org/building-a-simple-next-js-app-with-avail-light-client)
 
 ## 🌟 Getting Started
 

@@ -1,6 +1,6 @@
 # 🧊 Pass the Block: Decentralized Notes App
 
-Welcome to the first tutorial in our Pass the Block series! Just like building with blocks, we'll stack knowledge piece by piece, helping you construct a decentralized notes application using Next.js and Avail's Light Client. Each step of the tutorial is a new block in your foundation - from understanding Data Availability (DA) to creating something real and practical. No more staring at a blank canvas - [follow along with our step-by-step guide](https://blog.availproject.org/p/9f596a5e-954f-4001-9351-9a859905cb75) as we assemble the building blocks of your first decentralized app!
+Welcome to the first tutorial in our Pass the Block series! Just like building with blocks, we'll stack knowledge piece by piece, helping you construct a decentralized notes application using Next.js and Avail's Light Client. Each step of the tutorial is a new block in your foundation - from understanding Data Availability (DA) to creating something real and practical. No more staring at a blank canvas - [follow along with our step-by-step guide](https://blog.availproject.org/building-a-simple-next-js-app-with-avail-light-client) as we assemble the building blocks of your first decentralized app!
 
 ## 📝 What You'll Build
 
@@ -50,7 +50,7 @@ This tutorial breaks down into four main parts:
 
 ## 🤝 Need Help?
 
-- 💻 [Step-by-step tutorial](https://blog.availproject.org/p/9f596a5e-954f-4001-9351-9a859905cb75)
+- 💻 [Step-by-step tutorial](https://blog.availproject.org/building-a-simple-next-js-app-with-avail-light-client)
 - 📖 [Avail Documentation](https://docs.availproject.org)
 - 🔧 [Light Client API Documentation](https://docs.availproject.org/api-reference/avail-lc-api)
 
