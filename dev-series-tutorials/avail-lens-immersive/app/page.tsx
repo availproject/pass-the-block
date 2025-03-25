@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import NetworkGraph from './components/NetworkGraph';
+import Dashboard from './components/Dashboard';
 import { Card, CardBody, Button, Input } from '@nextui-org/react';
 import { mockData } from './data/mockData';
 
@@ -19,6 +20,12 @@ export default function Home() {
   const [profileHandle, setProfileHandle] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [targetHandle, setTargetHandle] = useState<string | null>(null);
+  const [selectedNode, setSelectedNode] = useState<{
+    label: string;
+    followers: number;
+    following: number;
+    posts: number;
+  } | null>(null);
 
   const handleSearch = async () => {
     setIsLoading(true);
@@ -29,7 +36,16 @@ export default function Home() {
 
     if (handleExists) {
       setTargetHandle(null); // Reset first
-      setTimeout(() => setTargetHandle(profileHandle.toLowerCase()), 0); // Then set new target
+      setTimeout(() => {
+        setTargetHandle(profileHandle.toLowerCase());
+        // Update selected node with mock stats
+        setSelectedNode({
+          label: handleExists.label,
+          followers: Math.floor(Math.random() * 1000) + 100,
+          following: Math.floor(Math.random() * 500) + 50,
+          posts: Math.floor(Math.random() * 200) + 10
+        });
+      }, 0);
     }
     
     setTimeout(() => setIsLoading(false), 1000);
@@ -38,7 +54,22 @@ export default function Home() {
   useEffect(() => {
     // Listen for target handle updates from double-clicks
     const handleTargetUpdate = (event: CustomEvent<{ handle: string | null }>) => {
-      setTargetHandle(event.detail.handle);
+      const newHandle = event.detail.handle;
+      setTargetHandle(newHandle);
+      
+      if (newHandle) {
+        const node = mockData.nodes.find(
+          n => n.label.toLowerCase() === newHandle.toLowerCase()
+        );
+        if (node) {
+          setSelectedNode({
+            label: node.label,
+            followers: Math.floor(Math.random() * 1000) + 100,
+            following: Math.floor(Math.random() * 500) + 50,
+            posts: Math.floor(Math.random() * 200) + 10
+          });
+        }
+      }
     };
 
     window.addEventListener('updateTargetHandle', handleTargetUpdate as EventListener);
@@ -49,6 +80,9 @@ export default function Home() {
 
   return (
     <main className="relative w-full h-screen overflow-hidden bg-gradient-to-br from-gray-900 to-black">
+      {/* Dashboard */}
+      <Dashboard selectedNode={selectedNode} />
+
       {/* Floating search bar */}
       <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 w-full max-w-2xl px-4">
         <Card className="bg-gray-900/50 backdrop-blur-sm border-1 border-gray-800">
@@ -79,7 +113,7 @@ export default function Home() {
                 isLoading={isLoading}
                 size="lg"
                 radius="lg"
-                className="bg-gradient-to-r from-blue-500 to-purple-500 font-semibold"
+                className="text-black bg-gradient-to-r from-[#44D5DE] to-[#EDC7FC] font-semibold"
               >
                 Visualize Network
               </Button>
