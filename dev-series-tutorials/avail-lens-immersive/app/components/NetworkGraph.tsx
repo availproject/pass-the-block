@@ -454,7 +454,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ nodes, links, targetHandle,
               key={`edge-${index}`}
               start={sourceNode.position}
               end={targetNode.position}
-              opacity={isConnectedToTarget ? 0.3 : 0.1}
+              opacity={isConnectedToTarget ? 0.3 : 0.3}
             />
           );
         })}
