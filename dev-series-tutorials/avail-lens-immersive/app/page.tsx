@@ -7,6 +7,7 @@ import { Card, CardBody, Button, Input } from '@nextui-org/react';
 import { initialData, processNetworkData } from './data/initialData';
 import { FollowerNode, FollowerNetwork } from './types/network';
 
+
 export default function Home() {
   const [profileHandle, setProfileHandle] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -257,6 +258,23 @@ export default function Home() {
       setIsLoading(false);
     }
   };
+  const handleTakeScreenshot = async () => {
+    try{
+      // Clean up the handle: remove 'lens/' prefix if present and .lens suffix if present
+    let cleanHandle = profileHandle
+    .replace('lens/', '')
+    .replace('.lens', '')
+    .toLowerCase(); // Normalize to lowercase
+      const response = await fetch(`/api/action?handle=${cleanHandle}`);
+      if (!response.ok) throw new Error('Failed to capture screenshot');
+  } catch (error) {
+      console.error('Error taking screenshot:', error);
+      alert('Something went wrong!');
+  } finally {
+      setIsLoading(false);
+  }
+    
+  }
 
   return (
     <main className="relative w-full h-screen overflow-hidden bg-gradient-to-br from-gray-900 to-black">
@@ -296,6 +314,16 @@ export default function Home() {
                 className="text-black bg-gradient-to-r from-[#44D5DE] to-[#EDC7FC] font-semibold"
               >
                 Visualize Network
+              </Button>
+              <Button
+                color="primary"
+                onClick={handleTakeScreenshot}
+                isLoading={isLoading}
+                size="lg"
+                radius="lg"
+                className="text-black bg-gradient-to-r from-[#44D5DE] to-[#EDC7FC] font-semibold"
+              >
+                Take Screenshot
               </Button>
             </div>
           </CardBody>
