@@ -24,6 +24,7 @@ export default function Home() {
     followers: number;
     following: number;
     posts: number;
+    lensScore: number;
   } | null>(null);
   const [searchHistory, setSearchHistory] = useState<string[]>(['lens/avail_project']);
   
@@ -42,7 +43,8 @@ export default function Home() {
         label: initialNode.label || initialHandle,
         followers: initialNode.followers || 555,
         following: initialNode.following || 6,
-        posts: 42
+        posts: 42,
+        lensScore: initialNode.lensScore
       });
     }
   }, []);
@@ -92,7 +94,8 @@ export default function Home() {
               label: node.label,
               followers: node.followers || 0,
               following: node.following || 0,
-              posts: Math.floor(Math.random() * 200) + 10 // Placeholder for posts data
+              posts: Math.floor(Math.random() * 200) + 10, // Placeholder for posts data
+              lensScore: node.lensScore
             });
           }
         }
@@ -155,7 +158,8 @@ export default function Home() {
             label: existingNode.label,
             followers: existingNode.followers || 0,
             following: existingNode.following || 0,
-            posts: Math.floor(Math.random() * 200) + 10
+            posts: Math.floor(Math.random() * 200) + 10,
+            lensScore: existingNode.lensScore
           });
           
           // Set target handle with animation
@@ -237,7 +241,8 @@ export default function Home() {
           label: targetNode.label,
           followers: targetNode.followers || 0,
           following: targetNode.following || 0,
-          posts: Math.floor(Math.random() * 200) + 10 // Placeholder for posts data
+          posts: Math.floor(Math.random() * 200) + 10, // Placeholder for posts data
+          lensScore: targetNode.lensScore 
         });
         
         // Set target handle with animation - same pattern as above
