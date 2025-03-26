@@ -4,6 +4,9 @@ import { Providers } from "./components/Providers";
 export const metadata: Metadata = {
   title: "Lens Network Visualizer",
   description: "Explore Lens Protocol connections in 3D space",
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({

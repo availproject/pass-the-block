@@ -9,9 +9,10 @@ interface DashboardProps {
     following: number;
     posts: number;
   } | null;
+  searchHistory: string[];
 }
 
-export default function Dashboard({ selectedNode }: DashboardProps) {
+export default function Dashboard({ selectedNode, searchHistory = [] }: DashboardProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   // Auto-open dashboard when a node is selected
@@ -25,7 +26,7 @@ export default function Dashboard({ selectedNode }: DashboardProps) {
     <>
       {/* Dashboard Panel with Visible Edge */}
       <div 
-        className={`fixed top-0 left-0 h-full z-20 transition-all duration-300 ease-in-out ${
+        className={`hidden md:block fixed top-0 left-0 h-full z-20 transition-all duration-300 ease-in-out ${
           isOpen ? 'translate-x-0' : 'translate-x-[-280px]'
         }`}
       >
@@ -118,6 +119,34 @@ export default function Dashboard({ selectedNode }: DashboardProps) {
                 </div>
               </div>
             )}
+
+            {/* Search History Section */}
+            <div className="p-6 space-y-4">
+              <h3 className="text-lg font-semibold text-white mb-3">Recent Searches</h3>
+              {searchHistory.length > 0 ? (
+                <div className="space-y-2">
+                  {searchHistory.slice(0, 5).map((handle, index) => (
+                    <Card 
+                      key={index} 
+                      className="bg-gray-800/50 border border-gray-700 hover:bg-gray-700/50 cursor-pointer transition-colors"
+                      isPressable
+                      onPress={() => {
+                        window.dispatchEvent(new CustomEvent('updateTargetHandle', { 
+                          detail: { handle: handle.toLowerCase() } 
+                        }));
+                      }}
+                    >
+                      <CardBody className="p-3 flex items-center">
+                        <div className="w-2 h-2 rounded-full bg-[#BCE3FE] mr-3"></div>
+                        <p className="text-white font-medium truncate">{handle}</p>
+                      </CardBody>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-400 text-sm">No recent searches</p>
+              )}
+            </div>
           </CardBody>
         </Card>
       </div>
