@@ -124,11 +124,11 @@ export default function Dashboard({ selectedNode, searchHistory = [] }: Dashboar
             <div className="p-6 space-y-4">
               <h3 className="text-lg font-semibold text-white mb-3">Recent Searches</h3>
               {searchHistory.length > 0 ? (
-                <div className="space-y-2">
+                <div className="space-y-2 w-full">
                   {searchHistory.slice(0, 5).map((handle, index) => (
                     <Card 
                       key={index} 
-                      className="bg-gray-800/50 border border-gray-700 hover:bg-gray-700/50 cursor-pointer transition-colors"
+                      className="w-full bg-gray-800/50 border border-gray-700 hover:bg-gray-700/50 cursor-pointer transition-colors"
                       isPressable
                       onPress={() => {
                         window.dispatchEvent(new CustomEvent('updateTargetHandle', { 
@@ -136,9 +136,11 @@ export default function Dashboard({ selectedNode, searchHistory = [] }: Dashboar
                         }));
                       }}
                     >
-                      <CardBody className="p-3 flex items-center">
-                        <div className="w-2 h-2 rounded-full bg-[#BCE3FE] mr-3"></div>
-                        <p className="text-white font-medium truncate">{handle}</p>
+                      <CardBody className="p-3 flex items-center justify-between">
+                        <div className="flex items-center overflow-hidden">
+                          <div className="w-2 h-2 flex-shrink-0 rounded-full bg-[#BCE3FE] mr-3"></div>
+                          <p className="text-white font-medium truncate">{handle}</p>
+                        </div>
                       </CardBody>
                     </Card>
                   ))}
