@@ -29,7 +29,7 @@ async function takeScreenshot(lensHandle :string) {
       });
     
       const page = await browser.newPage();
-      await page.goto('http://localhost:3000', { waitUntil: 'networkidle2' });
+      await page.goto(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000', { waitUntil: 'networkidle2' });
     
     //    // Configure the recorder options
     //    const recorder = new PuppeteerScreenRecorder(page, {

@@ -83,16 +83,15 @@ export default function Dashboard({ selectedNode, searchHistory = [] }: Dashboar
                       </p>
                     </CardBody>
                   </Card>
-                  <Card className="bg-gray-800/50 border border-gray-700">
-                    <CardBody className="p-4">
-                      <p className="text-sm text-gray-400">Total Posts</p>
-                      <p className="text-2xl font-semibold text-white">
-                        {selectedNode.posts.toLocaleString()}
-                      </p>
-                    </CardBody>
-                  </Card>
                 </div>
-
+                <Card className="bg-gray-800/50 border border-gray-700">
+                  <CardBody className="p-4">
+                    <p className="text-sm text-gray-400">Total Posts</p>
+                    <p className="text-2xl font-semibold text-white">
+                      {selectedNode.posts.toLocaleString()}
+                    </p>
+                  </CardBody>
+                </Card>
                 <Card className="bg-gray-800/50 border border-gray-700">
                   <CardBody className="p-4">
                     <p className="text-lg font-bold text-gray-400">Lens Score</p>

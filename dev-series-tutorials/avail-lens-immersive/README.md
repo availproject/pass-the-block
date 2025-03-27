@@ -30,7 +30,13 @@ cd pass-the-block/dev-series-tutorials/avail-lens-immersive
 npm install
 ```
 
-4. Run the development server:
+4. Set up environment variables:
+```bash
+cp env.example.js .env
+```
+Then edit the `.env` file and set `NEXT_PUBLIC_APP_URL` to match your application's running URL (e.g., `http://localhost:3000`).
+
+5. Run the development server:
 ```bash
 npm run dev
 ```
