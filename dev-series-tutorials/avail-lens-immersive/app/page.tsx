@@ -137,7 +137,7 @@ export default function Home() {
     setIsVisualizeLoading(true);
     try {
       // Clean up the handle: remove 'lens/' prefix if present and .lens suffix if present
-      let cleanHandle = profileHandle
+      let cleanHandle = profileHandle.trim()
         .replace('lens/', '')
         .replace('.lens', '')
         .toLowerCase(); // Normalize to lowercase
@@ -285,7 +285,7 @@ export default function Home() {
     setIsScreenshotLoading(true);
     try {
       // Clean up the handle: remove 'lens/' prefix if present and .lens suffix if present
-      let cleanHandle = profileHandle
+      let cleanHandle = profileHandle.trim()
         .replace('lens/', '')
         .replace('.lens', '')
         .toLowerCase(); // Normalize to lowercase
