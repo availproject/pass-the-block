@@ -87,7 +87,7 @@ export async function getFollowerDetails(profileId: string): Promise<RawFollower
 
   return result.data.followers.items.map((follower: any) => ({
     id: follower.id,
-    handle: follower.handle.fullHandle,
+    handle: follower.handle?.fullHandle || follower.handle?.localName || `user_${follower.id}`,
     picture: follower.metadata?.picture?.optimized?.uri || "default_image.png",
     following: profileId,
     followersCount: follower.stats.followers,
