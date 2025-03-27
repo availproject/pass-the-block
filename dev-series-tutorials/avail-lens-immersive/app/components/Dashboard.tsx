@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Card, CardBody, Button, Divider } from '@nextui-org/react';
 import { ChevronRightIcon, ChevronLeftIcon, ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import GraphControls from './GraphControls';
 
 interface DashboardProps {
   selectedNode: {
@@ -10,15 +11,24 @@ interface DashboardProps {
     posts: number;
     lensScore: number;
   } | null;
-  searchHistory: string[];
+  networks?: string[];
+  currentNetwork?: string;
+  onNetworkSwitch?: (network: string) => void;
 }
 
-export default function Dashboard({ selectedNode, searchHistory = [] }: DashboardProps) {
+export default function Dashboard({ 
+  selectedNode, 
+  networks = [],
+  currentNetwork = '',
+  onNetworkSwitch
+}: DashboardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [mobileIsOpen, setMobileIsOpen] = useState(false);
   const startY = useRef<number | null>(null);
   const currentY = useRef<number | null>(null);
   const mobileSheetRef = useRef<HTMLDivElement>(null);
+  const [autoRotate, setAutoRotate] = useState(true);
+  const [rotateSpeed, setRotateSpeed] = useState(0.3);
 
   // Auto-open dashboard when a node is selected
   useEffect(() => {
@@ -27,6 +37,28 @@ export default function Dashboard({ selectedNode, searchHistory = [] }: Dashboar
       setMobileIsOpen(true);
     }
   }, [selectedNode]);
+
+  // Sync autoRotate and rotateSpeed with NetworkGraph
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('setAutoRotate', { detail: autoRotate }));
+  }, [autoRotate]);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('setRotateSpeed', { detail: rotateSpeed }));
+  }, [rotateSpeed]);
+
+  // Listen for auto-rotate UI updates from NetworkGraph
+  useEffect(() => {
+    const handleAutoRotateUIUpdate = (event: CustomEvent<boolean>) => {
+      setAutoRotate(event.detail);
+    };
+    
+    window.addEventListener('updateAutoRotateUI', handleAutoRotateUIUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('updateAutoRotateUI', handleAutoRotateUIUpdate as EventListener);
+    };
+  }, []);
 
   // Add event listener to collapse dashboard when clicking on canvas
   useEffect(() => {
@@ -89,6 +121,20 @@ export default function Dashboard({ selectedNode, searchHistory = [] }: Dashboar
     currentY.current = null;
   };
 
+  // Camera control functions (placeholder implementations)
+  const resetCamera = () => {
+    // Dispatch an event that NetworkGraph can listen to
+    window.dispatchEvent(new CustomEvent('resetCamera'));
+  };
+  
+  const zoomIn = () => {
+    window.dispatchEvent(new CustomEvent('zoomIn'));
+  };
+  
+  const zoomOut = () => {
+    window.dispatchEvent(new CustomEvent('zoomOut'));
+  };
+
   return (
     <>
       {/* Desktop Dashboard Panel */}
@@ -101,7 +147,7 @@ export default function Dashboard({ selectedNode, searchHistory = [] }: Dashboar
         <div className="absolute right-0 top-0 h-full w-[20px] bg-gray-900/90 backdrop-blur-md border-r border-gray-800" />
         
         <Card className="h-full w-[320px] bg-gray-900/90 backdrop-blur-md border-r border-gray-800">
-          <CardBody className="p-0 overflow-y-auto">
+          <CardBody className="p-0 overflow-y-auto flex flex-col">
             {/* Dashboard Header */}
             <div className={`flex items-center justify-between ${isOpen ? 'p-6' : 'p-0'}`}>
               <div className="flex-1 mr-4">
@@ -131,7 +177,7 @@ export default function Dashboard({ selectedNode, searchHistory = [] }: Dashboar
 
             {/* Stats Section */}
             {selectedNode && (
-              <div className="p-6 space-y-6">
+              <div className="p-6 space-y-6 flex-1">
                 <div className="grid grid-cols-2 gap-4">
                   <Card className="bg-gray-800/50 border border-gray-700">
                     <CardBody className="p-4">
@@ -193,35 +239,21 @@ export default function Dashboard({ selectedNode, searchHistory = [] }: Dashboar
                 </div>
               </div>
             )}
-
-            {/* Search History Section */}
-            <div className="p-6 space-y-4">
-              <h3 className="text-lg font-semibold text-white mb-3">Recent Searches</h3>
-              {searchHistory.length > 0 ? (
-                <div className="space-y-2 w-full">
-                  {searchHistory.slice(0, 5).map((handle, index) => (
-                    <Card 
-                      key={index} 
-                      className="w-full bg-gray-800/50 border border-gray-700 hover:bg-gray-700/50 cursor-pointer transition-colors"
-                      isPressable
-                      onPress={() => {
-                        window.dispatchEvent(new CustomEvent('updateTargetHandle', { 
-                          detail: { handle: handle.toLowerCase() } 
-                        }));
-                      }}
-                    >
-                      <CardBody className="p-3 flex items-center justify-between">
-                        <div className="flex items-center overflow-hidden">
-                          <div className="w-2 h-2 flex-shrink-0 rounded-full bg-[#BCE3FE] mr-3"></div>
-                          <p className="text-white font-medium truncate">{handle}</p>
-                        </div>
-                      </CardBody>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-400 text-sm">No recent searches</p>
-              )}
+            
+            {/* Graph Controls at bottom of dashboard */}
+            <div className="mt-auto p-4">
+              <GraphControls 
+                autoRotate={autoRotate}
+                setAutoRotate={setAutoRotate}
+                rotateSpeed={rotateSpeed}
+                setRotateSpeed={setRotateSpeed}
+                resetCamera={resetCamera}
+                zoomIn={zoomIn}
+                zoomOut={zoomOut}
+                networks={networks}
+                currentNetwork={currentNetwork}
+                switchNetwork={onNetworkSwitch}
+              />
             </div>
           </CardBody>
         </Card>

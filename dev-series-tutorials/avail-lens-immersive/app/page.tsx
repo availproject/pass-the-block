@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import NetworkGraph from './components/NetworkGraph';
 import Dashboard from './components/Dashboard';
 import { Card, CardBody, Button, Input, Image } from '@nextui-org/react';
 import { initialData, processNetworkData } from './data/initialData';
-import { FollowerNode, FollowerNetwork } from './types/network';
 
 
 export default function Home() {
@@ -21,6 +20,7 @@ export default function Home() {
   });
   const [networkClusters, setNetworkClusters] = useState<number>(0); // Track number of clusters
   const [createdNetworks, setCreatedNetworks] = useState<Set<string>>(new Set(['lens/avail_project']));
+  const [currentNetwork, setCurrentNetwork] = useState<string>('lens/avail_project');
   const [selectedNode, setSelectedNode] = useState<{
     label: string;
     followers: number;
@@ -28,8 +28,44 @@ export default function Home() {
     posts: number;
     lensScore: number;
   } | null>(null);
-  const [searchHistory, setSearchHistory] = useState<string[]>(['lens/avail_project']);
   
+  // Get the ordered list of networks
+  const orderedNetworks = useMemo(() => {
+    return Array.from(createdNetworks);
+  }, [createdNetworks]);
+  
+  // Handle network switching
+  const handleNetworkSwitch = (network: string) => {
+    if (network === currentNetwork) return;
+    
+    setCurrentNetwork(network);
+    
+    // Find the node corresponding to this network
+    const node = networkData.nodes.find(
+      (n: any) => {
+        const nLabel = n.label?.toLowerCase();
+        const nName = n.name?.toLowerCase();
+        return nLabel === network.toLowerCase() || nName === network.toLowerCase();
+      }
+    );
+    
+    if (node) {
+      // Just directly update to the new network node without toggling null state
+      // This preserves auto-rotate state since we're not changing null/non-null state
+      // We're depending on NetworkGraph component to not toggle auto-rotate on targetHandle changes
+      setTargetHandle(node.label);
+      
+      // Update selected node info
+      setSelectedNode({
+        label: node.label,
+        followers: node.followers || 0,
+        following: node.following || 0,
+        posts: Math.floor(Math.random() * 200) + 10, // Placeholder for posts data
+        lensScore: node.lensScore
+      });
+    }
+  };
+
   // Initialize dashboard info on first load without triggering camera animation
   useEffect(() => {
     // Find the initial avail_project node
@@ -60,19 +96,6 @@ export default function Home() {
       if (newHandle === targetHandle) {
         // Skip if same handle clicked again
         return;
-      }
-      
-      // Add to search history if it's a valid handle
-      if (newHandle) {
-        // Format handle with lens/ prefix if needed
-        const formattedHandle = newHandle.startsWith('lens/') ? newHandle : `lens/${newHandle}`;
-        
-        setSearchHistory(prev => {
-          // Remove the handle if it already exists to avoid duplicates
-          const filtered = prev.filter(h => h.toLowerCase() !== formattedHandle.toLowerCase());
-          // Add to the beginning of the array (most recent first)
-          return [formattedHandle, ...filtered].slice(0, 10); // Keep only last 10
-        });
       }
       
       // Reset first
@@ -121,14 +144,6 @@ export default function Home() {
       
       const fullHandle = `lens/${cleanHandle}`;
       
-      // Add to search history
-      setSearchHistory(prev => {
-        // Remove the handle if it already exists to avoid duplicates
-        const filtered = prev.filter(h => h.toLowerCase() !== fullHandle.toLowerCase());
-        // Add to the beginning of the array (most recent first)
-        return [fullHandle, ...filtered].slice(0, 10); // Keep only last 10
-      });
-      
       // Check if the handle is the current target
       if (targetHandle === fullHandle) {
         // We're already focused on this node
@@ -139,6 +154,9 @@ export default function Home() {
       // Check if we've already created this network
       if (createdNetworks.has(fullHandle)) {
         console.log("Network already exists, focusing on it:", fullHandle);
+        
+        // Update current network
+        setCurrentNetwork(fullHandle);
         
         // Just find the node and focus on it - search with different patterns
         const existingNode = networkData.nodes.find(
@@ -222,6 +240,9 @@ export default function Home() {
         return newSet;
       });
       
+      // Set current network to the newly searched network
+      setCurrentNetwork(fullHandle);
+      
       // Find the target node - search with lens/ prefix since that's how it's stored
       const targetNode = processedWithOffset.nodes.find(
         (node: any) => {
@@ -282,7 +303,12 @@ export default function Home() {
   return (
     <main className="relative w-full h-screen overflow-hidden bg-gradient-to-br from-gray-900 to-black">
       {/* Dashboard */}
-      <Dashboard selectedNode={selectedNode} searchHistory={searchHistory} />
+      <Dashboard 
+        selectedNode={selectedNode} 
+        networks={orderedNetworks}
+        currentNetwork={currentNetwork}
+        onNetworkSwitch={handleNetworkSwitch}
+      />
 
       {/* Floating search bar */}
       <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 w-full max-w-2xl px-4">
@@ -357,6 +383,9 @@ export default function Home() {
           links={networkData.links}
           targetHandle={targetHandle}
           initialHandle={initialHandle}
+          networks={orderedNetworks}
+          currentNetwork={currentNetwork}
+          onNetworkSwitch={handleNetworkSwitch}
         />
       </div>
     </main>

@@ -29,13 +29,22 @@ interface NetworkGraphProps {
   links: Edge[];
   targetHandle: string | null;
   initialHandle: string | null;
+  networks?: string[];
+  currentNetwork?: string;
+  onNetworkSwitch?: (network: string) => void;
 }
 
 // Camera animation component
-const CameraAnimation = ({ targetPosition, targetHandle, isDoubleClick = false }: { 
+const CameraAnimation = ({ 
+  targetPosition, 
+  targetHandle, 
+  isDoubleClick = false,
+  onAnimationComplete
+}: { 
   targetPosition: [number, number, number], 
   targetHandle: string | null,
-  isDoubleClick?: boolean
+  isDoubleClick?: boolean,
+  onAnimationComplete?: () => void
 }) => {
   const { camera, controls } = useThree();
   const isAnimating = useRef(true);
@@ -94,6 +103,9 @@ const CameraAnimation = ({ targetPosition, targetHandle, isDoubleClick = false }
           (controls as any).target.set(...targetPosition);
           (controls as any).update();
         }
+        
+        // Call the onAnimationComplete callback
+        onAnimationComplete?.();
       }
     }
   });
@@ -142,7 +154,32 @@ const EdgeLine = ({
   );
 };
 
-const NetworkGraph: React.FC<NetworkGraphProps> = ({ nodes, links, targetHandle, initialHandle }) => {
+// Create a refs forwarder to access OrbitControls from the parent component
+const OrbitControlsWithRef = React.forwardRef<any, any>((props, ref) => {
+  const controlsRef = useRef<any>(null);
+  
+  useEffect(() => {
+    if (controlsRef.current) {
+      if (typeof ref === 'function') {
+        ref(controlsRef.current);
+      } else if (ref) {
+        ref.current = controlsRef.current;
+      }
+    }
+  }, [ref, controlsRef.current]);
+  
+  return <OrbitControls ref={controlsRef} {...props} />;
+});
+
+const NetworkGraph: React.FC<NetworkGraphProps> = ({ 
+  nodes, 
+  links, 
+  targetHandle, 
+  initialHandle,
+  networks = [],
+  currentNetwork = '',
+  onNetworkSwitch
+}) => {
   // Find the target node's ID
   const targetNodeId = nodes.find(node => 
     targetHandle ? 
@@ -227,7 +264,9 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ nodes, links, targetHandle,
 
   const [isFromDoubleClick, setIsFromDoubleClick] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
+  const [isNetworkSwitching, setIsNetworkSwitching] = useState(false);
   const moveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const networkSwitchTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Debounce function for camera movement
   const handleCameraMove = () => {
@@ -241,8 +280,20 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ nodes, links, targetHandle,
     // Set a new timer to mark camera as stopped after delay
     moveTimerRef.current = setTimeout(() => {
       setIsMoving(false);
-    }, 300); // 300ms debounce delay
+    }, 200); // 200ms debounce delay
   };
+  
+  // Force reset isMoving state when needed
+  useEffect(() => {
+    // Ensure we reset isMoving if it gets stuck
+    const forceResetTimer = setTimeout(() => {
+      if (isMoving) {
+        setIsMoving(false);
+      }
+    }, 5000);
+    
+    return () => clearTimeout(forceResetTimer);
+  }, [isMoving]);
 
   const handleNodeDoubleClick = (label: string) => {
     setIsFromDoubleClick(true);
@@ -257,6 +308,157 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ nodes, links, targetHandle,
       setIsFromDoubleClick(false);
     }
   }, [targetHandle]);
+  
+  // Auto-rotation state handling
+  const [autoRotate, setAutoRotate] = useState(true); // Start with auto-rotate on
+  const [rotateSpeed, setRotateSpeed] = useState(0.3);
+  const hasInitializedRef = useRef(false);
+  const hasSearchedRef = useRef(false);
+  const controlsRef = useRef<any>(null);
+  
+  // Initialize auto-rotate state once on mount - always start with auto-rotate on
+  useEffect(() => {
+    if (!hasInitializedRef.current) {
+      setAutoRotate(true); // Always start with auto-rotate on
+      hasInitializedRef.current = true;
+    }
+  }, []);
+  
+  // Track first search and turn off auto-rotate
+  useEffect(() => {
+    if (targetHandle && !hasSearchedRef.current) {
+      hasSearchedRef.current = true;
+      setAutoRotate(false); // Turn off auto-rotate after first search
+      // Ensure UI in Dashboard is updated
+      window.dispatchEvent(new CustomEvent('updateAutoRotateUI', { detail: false }));
+    }
+  }, [targetHandle]);
+  
+  // Handle animation completion
+  const handleAnimationComplete = () => {
+    setIsNetworkSwitching(false);
+    // Also reset moving state to ensure images load after animation
+    setIsMoving(false);
+  };
+
+  // Update network display state when switching
+  useEffect(() => {
+    // Clean up any existing timer
+    if (networkSwitchTimerRef.current) {
+      clearTimeout(networkSwitchTimerRef.current);
+      networkSwitchTimerRef.current = null;
+    }
+    
+    if (targetHandle && currentNetwork) {
+      // Set network switching flag to true when a new network is selected
+      setIsNetworkSwitching(true);
+      
+      // Turn off auto-rotate when switching networks
+      setAutoRotate(false);
+      
+      // Ensure UI in Dashboard is updated
+      window.dispatchEvent(new CustomEvent('updateAutoRotateUI', { detail: false }));
+      
+      // As a fallback, clear network switching state after animation completes
+      networkSwitchTimerRef.current = setTimeout(() => {
+        setIsNetworkSwitching(false);
+      }, 4000); // Slightly longer than the max animation duration
+    }
+    
+    return () => {
+      if (networkSwitchTimerRef.current) {
+        clearTimeout(networkSwitchTimerRef.current);
+      }
+    };
+  }, [targetHandle, currentNetwork]);
+  
+  // Camera control functions
+  const resetCamera = () => {
+    if (controlsRef.current) {
+      controlsRef.current.reset();
+    }
+  };
+  
+  const zoomIn = () => {
+    if (controlsRef.current) {
+      controlsRef.current.dollyOut(1.3);
+      controlsRef.current.update();
+    }
+  };
+  
+  const zoomOut = () => {
+    if (controlsRef.current) {
+      controlsRef.current.dollyIn(1.3);
+      controlsRef.current.update();
+    }
+  };
+  
+  const panCamera = (x: number, y: number) => {
+    if (controlsRef.current) {
+      // Get the camera and calculate the proper pan direction vectors based on camera orientation
+      const camera = controlsRef.current.object;
+      
+      // Calculate pan speed based on camera distance
+      const distance = camera.position.distanceTo(controlsRef.current.target);
+      const panSpeed = distance / 100; // Adjust sensitivity
+      
+      // Right vector (for x movement)
+      const right = new THREE.Vector3();
+      right.setFromMatrixColumn(camera.matrix, 0);
+      right.normalize();
+      
+      // Up vector (for y movement)
+      const up = new THREE.Vector3(0, 1, 0);
+      
+      // Move in the right direction for x
+      const moveX = right.multiplyScalar(x * panSpeed);
+      // Move in the up direction for y
+      const moveY = up.multiplyScalar(y * panSpeed);
+      
+      // Apply the movement to both camera and target
+      camera.position.add(moveX).add(moveY);
+      controlsRef.current.target.add(moveX).add(moveY);
+      
+      // Update the controls
+      controlsRef.current.update();
+    }
+  };
+
+  // Listen for camera control events from Dashboard
+  useEffect(() => {
+    const handleResetCamera = () => resetCamera();
+    const handleZoomIn = () => zoomIn();
+    const handleZoomOut = () => zoomOut();
+    
+    window.addEventListener('resetCamera', handleResetCamera);
+    window.addEventListener('zoomIn', handleZoomIn);
+    window.addEventListener('zoomOut', handleZoomOut);
+    
+    return () => {
+      window.removeEventListener('resetCamera', handleResetCamera);
+      window.removeEventListener('zoomIn', handleZoomIn);
+      window.removeEventListener('zoomOut', handleZoomOut);
+    };
+  }, []);
+
+  // Listen for autoRotate and rotateSpeed changes from Dashboard
+  useEffect(() => {
+    const handleAutoRotateChange = (event: CustomEvent<boolean>) => {
+      setAutoRotate(event.detail);
+    };
+    
+    const handleRotateSpeedChange = (event: CustomEvent<number>) => {
+      setRotateSpeed(event.detail);
+    };
+    
+    window.addEventListener('setAutoRotate', handleAutoRotateChange as EventListener);
+    window.addEventListener('setRotateSpeed', handleRotateSpeedChange as EventListener);
+    
+    return () => {
+      window.removeEventListener('setAutoRotate', handleAutoRotateChange as EventListener);
+      window.removeEventListener('setRotateSpeed', handleRotateSpeedChange as EventListener);
+    };
+  }, []);
 
   return (
     <div className="w-full h-full">
@@ -292,6 +494,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ nodes, links, targetHandle,
             targetPosition={spacedNodes.find(n => n.label.toLowerCase() === targetHandle.toLowerCase())?.position || [5, 5, 55]}
             targetHandle={targetHandle}
             isDoubleClick={isFromDoubleClick}
+            onAnimationComplete={handleAnimationComplete}
           />
         )}
 
@@ -330,17 +533,19 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ nodes, links, targetHandle,
               isHighlighted={isHighlighted}
               onNodeDoubleClick={handleNodeDoubleClick}
               isMoving={isMoving}
+              isNetworkSwitching={isNetworkSwitching}
             />
           );
         })}
 
-        <OrbitControls
+        <OrbitControlsWithRef
+          ref={controlsRef}
           makeDefault
           enablePan={true}
           enableZoom={true}
           enableRotate={true}
-          autoRotate={!targetHandle}
-          autoRotateSpeed={0.3}
+          autoRotate={autoRotate}
+          autoRotateSpeed={rotateSpeed * 3} // Scale the speed properly
           maxDistance={200}
           minDistance={10}
           enableDamping={true}

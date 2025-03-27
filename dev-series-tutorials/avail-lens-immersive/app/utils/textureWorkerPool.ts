@@ -1,6 +1,9 @@
 // Texture worker pool for efficiently loading textures off the main thread
 import * as THREE from 'three';
 
+// Texture cache to store already loaded textures
+const textureCache: Map<string, THREE.Texture> = new Map();
+
 // Types matching the worker's message types
 type LoadRequest = {
   id: string;
@@ -185,4 +188,52 @@ class TextureWorkerPool {
 
 // Create and export a singleton instance
 const textureWorkerPool = new TextureWorkerPool();
-export default textureWorkerPool; 
+
+// Simple worker pool for texture loading
+const textureWorkerPoolSimple = {
+  // Load a texture with caching
+  loadTexture: async (url: string): Promise<THREE.Texture> => {
+    // Check if texture is already in cache
+    if (textureCache.has(url)) {
+      return textureCache.get(url)!;
+    }
+    
+    // If not in cache, load it
+    return new Promise((resolve, reject) => {
+      new THREE.TextureLoader().load(
+        url,
+        (texture) => {
+          // Store in cache for future use
+          textureCache.set(url, texture);
+          resolve(texture);
+        },
+        undefined,
+        (error) => reject(error)
+      );
+    });
+  },
+  
+  // Clear a specific texture from cache
+  clearTexture: (url: string): void => {
+    if (textureCache.has(url)) {
+      const texture = textureCache.get(url);
+      texture?.dispose();
+      textureCache.delete(url);
+    }
+  },
+  
+  // Clear all textures from cache
+  clearAllTextures: (): void => {
+    textureCache.forEach(texture => {
+      texture.dispose();
+    });
+    textureCache.clear();
+  },
+  
+  // Get cache size
+  getCacheSize: (): number => {
+    return textureCache.size;
+  }
+};
+
+export default textureWorkerPoolSimple; 

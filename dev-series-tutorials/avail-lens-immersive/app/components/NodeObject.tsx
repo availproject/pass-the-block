@@ -14,6 +14,7 @@ interface NodeProps {
   renderOrder?: number;
   onNodeDoubleClick?: (label: string) => void;
   isMoving?: boolean;
+  isNetworkSwitching?: boolean;
 }
 
 const NodeObject = ({ 
@@ -25,6 +26,7 @@ const NodeObject = ({
   renderOrder = 0,
   onNodeDoubleClick,
   isMoving = false,
+  isNetworkSwitching = false,
 }: NodeProps) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const ringRef = useRef<THREE.Mesh>(null);
@@ -32,6 +34,7 @@ const NodeObject = ({
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
   const [hasValidImage, setHasValidImage] = useState(false);
   const loadingQueue = useRef<string | null>(null);
+  const lastPictureRef = useRef<string>(picture);
 
   // Create gradient shader material
   const gradientMaterial = new THREE.ShaderMaterial({
@@ -66,42 +69,54 @@ const NodeObject = ({
     depthWrite: true
   });
 
+  // Check if the picture has changed from a previous value
+  const hasPictureChanged = lastPictureRef.current !== picture;
+
   useEffect(() => {
-    // Skip loading if camera is moving
-    if (isMoving && !hasValidImage) {
+    // Update last picture reference
+    lastPictureRef.current = picture;
+    
+    // Skip loading if camera is moving during network switching
+    if (isNetworkSwitching) {
+      if (!hasValidImage) {
+        loadingQueue.current = picture;
+      }
+      return;
+    }
+    
+    // Only skip loading in these cases:
+    // 1. Camera is moving AND
+    // 2. We don't have an image yet AND
+    // 3. We don't already have something queued
+    if (isMoving && !hasValidImage && !loadingQueue.current) {
       // Store the URL to load later when camera stops
       loadingQueue.current = picture;
       return;
     }
     
-    // If we have a queued image to load and camera is not moving
-    if (loadingQueue.current && !isMoving) {
-      const pictureToLoad = loadingQueue.current;
+    // Try to load the texture in these cases:
+    // 1. We have a queued image to load AND camera isn't moving (or network isn't switching)
+    // 2. OR: We don't have a texture yet AND we're not in the middle of a network switch
+    // 3. OR: The picture URL has changed
+    if (
+      (loadingQueue.current && (!isMoving || !isNetworkSwitching)) ||
+      (!texture && !isNetworkSwitching && !hasValidImage) ||
+      hasPictureChanged
+    ) {
+      const pictureToLoad = loadingQueue.current || picture;
       loadingQueue.current = null;
       
-      // Use worker pool to load the texture
+      // Use worker pool to load the texture (will use cache if available)
       textureWorkerPool.loadTexture(pictureToLoad)
         .then((loadedTexture) => {
           setTexture(loadedTexture);
           setHasValidImage(true);
         })
         .catch((error) => {
-          console.log('Error loading texture:', error);
-          setHasValidImage(false);
-        });
-    } else if (!texture && !isMoving && !hasValidImage) {
-      // Initial load when component mounts and camera is not moving
-      textureWorkerPool.loadTexture(picture)
-        .then((loadedTexture) => {
-          setTexture(loadedTexture);
-          setHasValidImage(true);
-        })
-        .catch((error) => {
-          console.log('Error loading texture:', error);
           setHasValidImage(false);
         });
     }
-  }, [picture, isMoving, hasValidImage, texture]);
+  }, [picture, isMoving, isNetworkSwitching, hasValidImage, texture, hasPictureChanged]);
 
   useFrame((state: RootState) => {
     // Make nodes face camera but don't copy the full quaternion
