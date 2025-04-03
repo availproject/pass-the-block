@@ -1,8 +1,10 @@
 import { ApolloClient, InMemoryCache, gql } from '@apollo/client';
 import { RawFollower } from '../types/network';
+import { evmAddress, PublicClient, mainnet  } from '@lens-protocol/client';
+import { fetchAccountsAvailable } from '@lens-protocol/client/actions';
 
 // Initialize Apollo Client
-const client = new ApolloClient({
+const apolloClient = new ApolloClient({
   uri: 'https://api-v2.lens.dev/',
   cache: new InMemoryCache()
 });
@@ -58,8 +60,43 @@ const GET_FOLLOWER_DETAILS = gql`
   }
 `;
 
+// Query to fetch profiles by wallet address
+const GET_PROFILES_BY_ADDRESS = gql`
+  query ProfilesByAddress($request: ProfilesRequest!) {
+    profiles(request: $request) {
+      items {
+        id
+        handle {
+          fullHandle
+          localName
+        }
+        metadata {
+          picture {
+            ... on ImageSet {
+              optimized {
+                uri
+              }
+            }
+          }
+        }
+        stats {
+          followers
+          following
+          lensClassifierScore
+        }
+      }
+    }
+  }
+`;
+
+// New public client for modern Lens API interactions
+export const publicClient = PublicClient.create({
+  environment: mainnet,
+  origin: typeof window !== 'undefined' ? window.location.origin : 'lenscollective.me',
+});
+
 export async function getProfileMetadata(lensHandle: string) {
-  const result = await client.query({
+  const result = await apolloClient.query({
     query: PROFILE_METADATA,
     variables: { request: { forHandle: lensHandle } }
   });
@@ -74,7 +111,7 @@ export async function getProfileMetadata(lensHandle: string) {
 }
 
 export async function getFollowerDetails(profileId: string): Promise<RawFollower[]> {
-  const result = await client.query({
+  const result = await apolloClient.query({
     query: GET_FOLLOWER_DETAILS,
     variables: {
       request: {
@@ -95,3 +132,87 @@ export async function getFollowerDetails(profileId: string): Promise<RawFollower
     lensScore: follower.stats.lensClassifierScore
   }));
 } 
+
+/**
+ * Fetches a Lens account using a wallet address via Apollo GraphQL
+ * @param address The wallet address to fetch the account for
+ * @returns The Lens account if found, null otherwise
+ */
+export async function fetchAccountByAddress(address: string) {
+  if (!address) return null;
+  
+  try {
+    // Format address to lowercase for consistency
+    const formattedAddress = address.toLowerCase();
+    
+    // Use Apollo to fetch profiles by address
+    const result = await apolloClient.query({
+      query: GET_PROFILES_BY_ADDRESS,
+      variables: {
+        request: {
+          where: {
+            ownedBy: [formattedAddress]
+          }
+        }
+      }
+    });
+    
+    const profiles = result.data?.profiles?.items || [];
+    
+    // If we found profiles, return the first one
+    if (profiles.length > 0) {
+      const profile = profiles[0];
+      
+      // Create a new object with cleaned values instead of modifying the original
+      const formattedProfile = {
+        id: profile.id,
+        handle: profile.handle 
+          ? {
+              fullHandle: profile.handle.fullHandle?.replace('lens/', '') || '',
+              localName: profile.handle.localName?.replace('lens/', '') || ''
+            }
+          : null,
+        // Add other properties as needed to match the LensAccount interface
+        stats: profile.stats,
+        metadata: profile.metadata
+      };
+      
+      return formattedProfile;
+    }
+    
+    // If no profiles found, return null
+    return null;
+  } catch (error) {
+    console.error(`Error fetching Lens account:`, error);
+    return null;
+  }
+}
+
+/**
+ * Fetches a Lens account using the new Lens client API (for future use)
+ * @param address The wallet address to fetch the account for
+ * @returns The Lens account if found, null otherwise
+ */
+export async function fetchAccountByAddressNewMethod(address: string) {
+  // This method will be implemented once the Lens API supports the accountsAvailable query
+  // For now, it just returns null to avoid errors
+  return null;
+  
+  /* 
+  This implementation will work once the Lens API is updated to support the accountsAvailable query:
+  
+  if (!address) return null;
+  
+  try {
+    // Format address to lowercase for consistency
+    const formattedAddress = address.toLowerCase();
+    
+    // TODO: Implementation with the new Lens client API will go here when available
+    
+    return null;
+  } catch (error) {
+    console.error('Error fetching Lens account by address using new method:', error);
+    return null;
+  }
+  */
+}
