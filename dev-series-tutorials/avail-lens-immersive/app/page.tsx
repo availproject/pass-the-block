@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import NetworkGraph from './components/NetworkGraph';
 import Dashboard from './components/Dashboard';
+import SocialCardModal from './components/SocialCardModal';
 import { Card, CardBody, Button, Input, Image } from '@nextui-org/react';
 import { initialData, processNetworkData } from './data/initialData';
 import WalletButton from './components/WalletButton';
@@ -18,6 +19,10 @@ export default function Home() {
   const [isVisualizeLoading, setIsVisualizeLoading] = useState(false);
   const [isScreenshotLoading, setIsScreenshotLoading] = useState(false);
   const [initialHandle] = useState<string>('lens/avail_project');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [graphImageUrl, setGraphImageUrl] = useState('');
+  const [isModalLoading, setIsModalLoading] = useState(false);
+  const [error, setError] = useState('');
   // Start with null initially so no animation occurs
   const [targetHandle, setTargetHandle] = useState<string | null>(null);
   const [networkData, setNetworkData] = useState({
@@ -315,6 +320,38 @@ export default function Home() {
     }
   };
 
+  const handleGenerateCard = async () => {
+    setIsModalLoading(true);
+    setError('');
+
+    try {
+      // Clean up the handle: remove 'lens/' prefix if present and .lens suffix if present
+      let cleanHandle = profileHandle.trim()
+        .replace('lens/', '')
+        .replace('.lens', '')
+        .toLowerCase(); // Normalize to lowercase
+
+        
+      
+      const response = await fetch(`/api/action?handle=${cleanHandle}`);
+
+      const data = await response.json();
+      console.log(`Data received: ${data.imageDataUrl}`)
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate');
+      }
+
+      setGraphImageUrl(data.imageDataUrl);
+      setIsModalOpen(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      console.error('Error:', err);
+    } finally {
+      setIsModalLoading(false);
+    }
+  };
+
   // Update the profileHandle when a selection is made in the MultiSelectInput
   const handleSelectChange = (selected: { value: string; label: string } | null) => {
     setSelectedOption(selected);
@@ -386,13 +423,17 @@ export default function Home() {
                   </Button>
                   <Button
                     color="primary"
-                    onClick={handleTakeScreenshot}
+                    onClick={handleGenerateCard}
                     isDisabled={!profileHandle.trim() || isScreenshotLoading}
                     size="lg"
                     radius="lg"
                     className="flex-1 md:flex-none text-black bg-gradient-to-r from-[#44D5DE] to-[#EDC7FC] font-semibold"
                   >
-                    {isScreenshotLoading ? "Capturing..." : (
+                    {isModalLoading ?  (
+                      <span className="flex items-center gap-2">
+              <Spinner /> Generating...
+            </span>
+                    ) : (
                       <div className="flex items-center gap-1">
                         <span>Post to</span>
                         <svg width="60" height="30" viewBox="0 0 80 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="ml-1">
@@ -409,15 +450,34 @@ export default function Home() {
                       </div>
                     )}
                   </Button>
+                  {error && (
+                  <p className="mt-3 text-red-400">{error}</p>
+                  )}
                 </div>
               </div>
             </div>
           </CardBody>
         </Card>
       </div>
+      
 
       {/* Full screen visualization */}
       <div className="w-full h-full">
+      <SocialCardModal
+                    isOpen={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
+                    lensHandle={selectedNode?.label || 'availproject'}
+                    graphImageUrl={graphImageUrl}
+                    profileData={(
+                      {
+                        name: selectedNode?.label || 'availproject',
+                        followers: selectedNode?.followers || 0,
+                        following: selectedNode?.following || 0,
+                        posts: selectedNode?.posts || 0,
+                        score: selectedNode?.lensScore || 0
+                      })
+                    }
+                    />
         <NetworkGraph
           nodes={networkData.nodes}
           links={networkData.links}
@@ -429,5 +489,14 @@ export default function Home() {
         />
       </div>
     </main>
+  );
+}
+
+function Spinner() {
+  return (
+    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
   );
 }

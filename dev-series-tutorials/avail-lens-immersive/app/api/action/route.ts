@@ -2,6 +2,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import puppeteer from 'puppeteer';
+import sharp from 'sharp';
+import fs from 'fs';
+import path from 'path';
 
 export async function GET(req: NextRequest) {
 console.log("Requesting Screenshot")
@@ -14,8 +17,33 @@ console.log("Requesting Screenshot")
 
   try {
       console.log("Taking Screenshot...")  
+      //taking screenshot
       await takeScreenshot(lensHandle);
-      return NextResponse.json({ status: 200 })
+     
+       // 2. Verify the image exists
+      const imagePath = `../storage/${lensHandle}_network_graph.png`;
+      const fullPath = path.join(process.cwd(), 'public', imagePath);
+
+      if (!fs.existsSync(fullPath)) {
+        return NextResponse.json(
+          { error: 'Graph image not found' },
+          { status: 404 }
+        );
+      }
+
+      // Read image and convert to base64
+      const fileBuffer = fs.readFileSync(fullPath);
+      const base64Image = fileBuffer.toString('base64');
+      const dataUrl = `data:image/png;base64,${base64Image}`;
+
+
+        return NextResponse.json({
+          success: true,
+          imageUrl: dataUrl,
+          timestamp: new Date().toISOString()
+        });
+    
+
   } catch (error) {
       console.error('Error taking screenshot:', error);
       return NextResponse.json({ error: 'Failed to capture screenshot' }, { status: 500 });
@@ -25,71 +53,90 @@ console.log("Requesting Screenshot")
 async function takeScreenshot(lensHandle :string) {
     const browser = await puppeteer.launch({
         headless: true,
-        defaultViewport: { width: 2560, height: 1440 }
+        defaultViewport: { width: 1920, height: 1080 }
       });
     
       const page = await browser.newPage();
       await page.goto(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000', { waitUntil: 'networkidle2' });
     
-    //    // Configure the recorder options
-    //    const recorder = new PuppeteerScreenRecorder(page, {
-    //     followNewTab: true,
-    //     fps: 30,
-    //     videoFrame: { width: 2560, height: 1440 },
-    //   });
+      const inputContainerSelector = 'div.absolute.top-4.left-1\\/2';
+      await page.waitForSelector(inputContainerSelector, { timeout: 100000 });
+
+      try {
+        await page.waitForSelector(inputContainerSelector, { timeout: 10000 });
+        console.log('Floating search bar found.');
     
-      // Define the input selector
-      const inputSelector = 'input[placeholder="Enter Lens handle (e.g. avail_project)"]';
-      await page.waitForSelector(inputSelector, { timeout: 100000 });
+        // Click to activate the input
+        await page.click(inputContainerSelector);
+        await sleep(300);
     
-      // Click the input field to focus
-      await page.click(inputSelector);
+        // Select the actual input field that CreatableSelect renders
+        const reactInputSelector = 'div.select__control input';
     
-      // Ensure the input field is empty before typing
-      await page.evaluate((selector) => {
-        const input = document.querySelector(selector) as HTMLInputElement;
-        if (input) input.value = '';
-      }, inputSelector);
+        await page.waitForSelector(reactInputSelector, { timeout: 5000 });
     
-      // Type the full lens handle, one character at a time with a small delay
-      for (const char of lensHandle) {
-        await page.type(inputSelector, char, { delay: 1000 });
+        // Clear existing input just in case
+        await page.focus(reactInputSelector);
+        await page.click(reactInputSelector, { clickCount: 3 });
+        await page.keyboard.press('Backspace');
+    
+        await page.type(reactInputSelector, `${lensHandle}`, { delay: 100 });
+    
         
+    
+        // Wait a little to simulate user pause
+        await sleep(500);
+        await page.keyboard.press('Enter');
+        // Wait a little to simulate user pause
+        await sleep(500);
+        // Wait for the "Visualize Network" button to appear
+        await page.waitForSelector('div.flex.flex-row.gap-2.w-full.md\\:w-auto > button:first-of-type', { visible: true });
+    
+        // Click the "Visualize Network" button
+        await page.click('div.flex.flex-row.gap-2.w-full.md\\:w-auto > button:first-of-type');
+    
+        console.log('Clicked "Visualize Network" button.');
+        console.log('Lens handle entered.');
+    
+        await sleep(50000); // Wait for the graph to respond/render
+    
+      } catch (error) {
+        console.error('Error selecting or interacting with input:', error);
       }
     
-      // Fire blur event to ensure changes are registered
-      await page.evaluate((selector) => {
-        const input = document.querySelector(selector) as HTMLInputElement;
-        if (input) {
-          input.dispatchEvent(new Event('input', { bubbles: true }));
-          input.dispatchEvent(new Event('change', { bubbles: true }));
-          input.dispatchEvent(new Event('blur', { bubbles: true }));
-        }
-      }, inputSelector);
+      // Screenshot + crop logic
+      const networkGraphSelector = '#network-graph canvas';
+      try {
+        await page.waitForSelector(networkGraphSelector, { timeout: 30000 });
+        console.log('Network graph loaded.');
     
-      // Press Enter
-      await page.keyboard.press('Enter');
-        await sleep(10000);
+        await page.screenshot({ path: `./storage/${lensHandle}_full.png` });
     
-       // Start recording and save to 'recording.mp4'
-    //    await recorder.start('recording.mp4'); 
+        const clip = await page.$eval('#network-graph', el => {
+          const { x, y, width, height } = el.getBoundingClientRect();
+          const size = Math.min(width, height) * 0.8;
+          const left = x + (width - size) / 2;
+          const top = y + 100;
+          return {
+            left: Math.floor(left),
+            top: Math.floor(top),
+            width: Math.floor(size),
+            height: Math.floor(size)
+          };
+        });
     
-      // Wait for the network graph to load
-      const networkGraphSelector = 'div.w-full.h-full canvas';
-      await page.waitForSelector(networkGraphSelector, { timeout: 300000 });
+        await sharp(`./storage/${lensHandle}_full.png`)
+          .extract(clip)
+          .toFile(`./storage/${lensHandle}_network_graph.png`);
+        console.log(`Graph stored to ./storage/${lensHandle}_network_graph.png`)
     
-    await sleep(10000)
-      // Take a screenshot
-      await page.screenshot({ path: `./storage/${lensHandle}_screenshot.png`, fullPage: true });
-    
-    // Stop recording
-    // await recorder.stop();
-    
-      await browser.close();
-      console.log('Screenshot captured and saved');
+        await browser.close();
+      } catch (error) {
+        console.error('Graph did not load in time:', error);
+      }
 }
 
 
 function sleep(time: number) {
-    return new Promise((resolve) => setTimeout(resolve, time));
-  }
+  return new Promise((resolve) => setTimeout(resolve, time));
+}

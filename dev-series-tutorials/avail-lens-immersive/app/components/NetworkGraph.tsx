@@ -461,7 +461,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
   }, []);
 
   return (
-    <div className="w-full h-full">
+    <div id="network-graph" className="w-full h-full">
       <Canvas
         camera={{ 
           position: [5, 5, 80],
