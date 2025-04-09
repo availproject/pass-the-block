@@ -21,7 +21,7 @@ const NodeObject = ({
   position, 
   label, 
   color = '#3CA3FC',
-  picture = '/default_profile.png',
+  picture = '/default_image.png',
   isHighlighted = false,
   renderOrder = 0,
   onNodeDoubleClick,
