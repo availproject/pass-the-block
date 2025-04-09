@@ -336,13 +336,13 @@ export default function Home() {
       const response = await fetch(`/api/action?handle=${cleanHandle}`);
 
       const data = await response.json();
-      console.log(`Data received: ${data.imageDataUrl}`)
+      console.log(`Data received: ${data.imageUrl}`)
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to generate');
       }
 
-      setGraphImageUrl(data.imageDataUrl);
+      setGraphImageUrl(data.imageUrl);
       setIsModalOpen(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');

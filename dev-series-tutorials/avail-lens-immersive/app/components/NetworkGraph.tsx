@@ -32,6 +32,7 @@ interface NetworkGraphProps {
   networks?: string[];
   currentNetwork?: string;
   onNetworkSwitch?: (network: string) => void;
+  isScreenshot?: boolean;
 }
 
 // Camera animation component
@@ -39,12 +40,14 @@ const CameraAnimation = ({
   targetPosition, 
   targetHandle, 
   isDoubleClick = false,
-  onAnimationComplete
+  onAnimationComplete,
+  isScreenshot = false
 }: { 
   targetPosition: [number, number, number], 
   targetHandle: string | null,
   isDoubleClick?: boolean,
-  onAnimationComplete?: () => void
+  onAnimationComplete?: () => void,
+  isScreenshot?: boolean
 }) => {
   const { camera, controls } = useThree();
   const isAnimating = useRef(true);
@@ -77,11 +80,15 @@ const CameraAnimation = ({
         ? 4 * Math.pow(progress, 3)
         : 1 - Math.pow(-2 * progress + 2, 3) / 2;
       
-      // Use different offsets based on whether it's a double-click or search
-      // Closer view for double-click, wider view for search
-      const offset = isDoubleClick 
-        ? new THREE.Vector3(0, 0, 20) // Front view for double-click
-        : new THREE.Vector3(0, 0, 100); // Front view for search, but far enough to see network
+      // Use different offsets based on whether it's a double-click, screenshot, or search
+      let offset;
+      if (isScreenshot) {
+        offset = new THREE.Vector3(0, 0, 80); // Fixed offset for screenshot
+      } else if (isDoubleClick) {
+        offset = new THREE.Vector3(0, 0, 20); // Front view for double-click
+      } else {
+        offset = new THREE.Vector3(0, 0, 100); // Front view for search, but far enough to see network
+      }
       
       const targetCameraPos = new THREE.Vector3(...targetPosition).add(offset);
       
@@ -178,7 +185,8 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
   initialHandle,
   networks = [],
   currentNetwork = '',
-  onNetworkSwitch
+  onNetworkSwitch,
+  isScreenshot = false
 }) => {
   // Find the target node's ID
   const targetNodeId = nodes.find(node => 
@@ -465,7 +473,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
       <Canvas
         camera={{ 
           position: [5, 5, 80],
-          fov: 60,
+          fov: isScreenshot ? 45 : 60,
           near: 0.1,
           far: 3000
         }}
@@ -495,6 +503,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
             targetHandle={targetHandle}
             isDoubleClick={isFromDoubleClick}
             onAnimationComplete={handleAnimationComplete}
+            isScreenshot={isScreenshot}
           />
         )}
 

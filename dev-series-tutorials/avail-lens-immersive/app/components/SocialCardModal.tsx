@@ -105,10 +105,10 @@ export default function SocialCardModal({
             </div>
 
             {/* Graph Section */}
-            <div className="flex-1 bg-[#1E2129] p-4 flex items-center justify-center">
+            <div className="flex-1 bg-[#1E2129] flex items-center justify-center">
               {graphImageUrl ? (
                 <img 
-                  src={graphImageUrl} 
+                  src={graphImageUrl.startsWith('data:') ? graphImageUrl : `/images/${graphImageUrl}`} 
                   alt="Social Graph" 
                   className="max-w-full h-auto max-h-[300px] md:max-h-full rounded-lg"
                   onError={(e) => {
