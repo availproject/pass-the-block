@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { buildNetwork } from '@/app/utils/network';
-import { getProfileMetadata, getFollowerDetails } from '@/app/utils/lens-client';
+import { getAccountMetadata, getFollowerDetails } from '@/app/utils/lens-client';
 
 export async function GET(
   request: NextRequest,
@@ -12,7 +12,7 @@ export async function GET(
     // Build the network using our utility functions
     const network = await buildNetwork(
       `lens/${handle}`,
-      getProfileMetadata,
+      getAccountMetadata,
       getFollowerDetails,
       200
     );

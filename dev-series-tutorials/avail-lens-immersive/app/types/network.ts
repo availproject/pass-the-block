@@ -1,10 +1,16 @@
 export interface FollowerNode {
   id: string;
-  name: string;
-  picture: string;
+  address: string;
+  name?: string;
+  handle: string;
+  fullHandle: string;
+  picture?: string;
+  lensScore: number;
+  posts: number;
+  tips: number;
+  collects: number;
   followers: number;
   following: number;
-  lensScore: number;
 }
 
 export interface FollowerLink {
@@ -19,10 +25,15 @@ export interface FollowerNetwork {
 
 export interface RawFollower {
   id: string;
+  address: string;
+  name?: string;
   handle: string;
-  picture: string;
-  following: string;
-  followersCount: number;
-  followingCount: number;
+  fullHandle: string;
+  picture?: string;
   lensScore: number;
+  posts: number;
+  tips: number;
+  collects: number;
+  followers: number;
+  following: number;
 } 

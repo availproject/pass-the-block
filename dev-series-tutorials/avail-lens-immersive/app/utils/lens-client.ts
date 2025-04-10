@@ -1,63 +1,84 @@
 import { ApolloClient, InMemoryCache, gql } from '@apollo/client';
 import { RawFollower } from '../types/network';
 import { evmAddress, PublicClient, mainnet  } from '@lens-protocol/client';
-import { fetchAccountsAvailable } from '@lens-protocol/client/actions';
+import { fetchAccountsAvailable, follow } from '@lens-protocol/client/actions';
 
 // Initialize Apollo Client
 const apolloClient = new ApolloClient({
-  uri: 'https://api-v2.lens.dev/',
+  uri: 'https://api.lens.xyz/graphql',
   cache: new InMemoryCache()
 });
 
 // GraphQL Queries
-const PROFILE_METADATA = gql`
-  query Profile($request: ProfileRequest!) {
-    profile(request: $request) {
-      metadata {
-        picture {
-          ... on ImageSet {
-            optimized {
-              uri
-            }
-          }
-        }
-      }
-      id
-      stats {
-        followers
-        following
-        lensClassifierScore
-      }
+
+// Query to get Account Details with just Lens Handle
+const ACCOUNT_METADATA = gql`
+query AccountStats($accountStatsRequest: AccountStatsRequest!, $accountRequest: AccountRequest!) {
+  accountStats(request: $accountStatsRequest) {
+    feedStats {
+      posts
+      tips
+      collects
+    }
+    graphFollowStats {
+      followers
+      following
     }
   }
+  account(request: $accountRequest) {
+    address
+    username {
+      id
+      localName
+      value
+    }
+    metadata {
+      picture
+      name
+    }
+    score
+  }
+}
 `;
 
+// Query to get Account stats by passing Lens Handle
+const ACCOUNT_STATS = gql`
+query AccountStats($request: AccountStatsRequest!) {
+  accountStats(request: $request) {
+    feedStats {
+      posts
+      tips
+      collects
+    }
+    graphFollowStats {
+      followers
+      following
+    }
+  }
+}
+`;
+
+// Get follower details by passing Account Address
 const GET_FOLLOWER_DETAILS = gql`
-  query Followers($request: FollowersRequest!) {
-    followers(request: $request) {
-      items {
-        handle {
-          fullHandle
+query Followers($request: FollowersRequest!) {
+  followers(request: $request) {
+    items {
+      follower {
+        address
+        username {
+          id
           localName
+          value
         }
-        id
         metadata {
-          picture {
-            ... on ImageSet {
-              optimized {
-                uri
-              }
-            }
-          }
+          picture
+          name
         }
-        stats {
-          followers
-          following
-          lensClassifierScore
-        }
+        score
       }
     }
   }
+}
 `;
 
 // Query to fetch profiles by wallet address
@@ -95,42 +116,114 @@ export const publicClient = PublicClient.create({
   origin: typeof window !== 'undefined' ? window.location.origin : 'lenscollective.me',
 });
 
-export async function getProfileMetadata(lensHandle: string) {
+export async function getAccountMetadata(lensHandle: string): Promise<RawFollower> {
   const result = await apolloClient.query({
-    query: PROFILE_METADATA,
-    variables: { request: { forHandle: lensHandle } }
+    query: ACCOUNT_METADATA,
+    variables: { accountStatsRequest: { 
+      username: {
+          localName: lensHandle
+        }
+      },
+      accountRequest: {
+        username: {
+          localName: lensHandle
+        }
+      }
+    }
   });
   
+  const { account, accountStats } = result.data;
+
   return {
-    id: result.data.profile.id,
-    picture: result.data.profile.metadata?.picture?.optimized?.uri,
-    followersCount: result.data.profile.stats.followers,
-    followingCount: result.data.profile.stats.following,
-    lensScore: result.data.profile.stats.lensClassifierScore
+    id: account.username.id,
+    address: account.address,
+    handle: account.username.localName,
+    fullHandle: account.username.value,
+    picture: account.metadata?.picture,
+    name: account.metadata?.name,
+    lensScore: account.score,
+    posts: accountStats.feedStats.posts,
+    tips: accountStats.feedStats.tips,
+    collects: accountStats.feedStats.collects,
+    followers: accountStats.graphFollowStats.followers,
+    following: accountStats.graphFollowStats.following
   };
 }
 
-export async function getFollowerDetails(profileId: string): Promise<RawFollower[]> {
+export async function getAccountStats(lensHandle: string) {
+  const result = await apolloClient.query({
+    query: ACCOUNT_STATS,
+    variables: { request: 
+      { username: 
+        {
+          localName: lensHandle
+        }
+      }}
+  });
+
+  const accountStats = result.data
+  
+  return {
+    posts: accountStats.feedStats.posts,
+    tips: accountStats.feedStats.tips,
+    collects: accountStats.feedStats.collects,
+    followers: accountStats.graphFollowStats.followers,
+    following: accountStats.graphFollowStats.following
+  };
+}
+
+export async function getFollowerDetails(accountAddress: string): Promise<RawFollower[]> {
+  //get Follower Details
   const result = await apolloClient.query({
     query: GET_FOLLOWER_DETAILS,
     variables: {
       request: {
-        orderBy: "PROFILE_CLASSIFIER",
-        of: profileId,
-        limit: "Ten"
+        account: accountAddress,
+        orderBy: "ACCOUNT_SCORE",
+        pageSize: "TEN"
       }
     }
   });
 
-  return result.data.followers.items.map((follower: any) => ({
-    id: follower.id,
-    handle: follower.handle?.fullHandle || follower.handle?.localName || `user_${follower.id}`,
-    picture: follower.metadata?.picture?.optimized?.uri || "default_image.png",
-    following: profileId,
-    followersCount: follower.stats.followers,
-    followingCount: follower.stats.following,
-    lensScore: follower.stats.lensClassifierScore
-  }));
+  const followerItems = result.data.followers.items;
+
+
+  const followerData = await Promise.all(
+  followerItems.map(async (item: any) => {
+    const follower = item.follower;
+
+    // Fetch stats for this follower
+    const statsResult = await apolloClient.query({
+      query: ACCOUNT_STATS,
+      variables:  {
+        request: {
+          username: {
+            localName: follower.username.localName
+          }
+        }
+      }
+    });
+
+    const stats = statsResult.data;
+
+    return {
+      id: follower.username?.id,
+      address: follower.address,
+      handle: follower.username.localName || `user_${follower.id}`,
+      fullHandle: follower.username.value,
+      picture: follower.metadata?.picture || "default_image.png",
+      name: follower.metadata?.name || `user_${follower.username.id}`,
+      lensScore: follower.score,
+      posts: stats.accountStats.feedStats.posts,
+      tips: stats.accountStats.feedStats.tips,
+      collects: stats.accountStats.feedStats.collects,
+      followers: stats.accountStats.graphFollowStats.followers,
+      following: stats.accountStats.graphFollowStats.following
+    };
+  })
+);
+
+  return followerData;
 } 
 
 /**
