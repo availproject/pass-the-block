@@ -382,7 +382,7 @@ export default function Home() {
         <Card className="bg-gray-900/50 backdrop-blur-sm border-1 border-gray-800">
           <CardBody>
             <div className="flex flex-col gap-3">
-              <div className="flex flex-col md:flex-row gap-2 md:gap-4">
+              <div className="flex flex-row gap-2 md:gap-4">
                 <div className="flex flex-row w-full items-center gap-2">
                   {connected ? (
                     <div className="flex-1">
@@ -410,7 +410,7 @@ export default function Home() {
                     <WalletButton />
                   </div>
                 </div>
-                <div className="flex flex-row gap-2 w-full md:w-auto">
+                <div className="flex flex-row gap-2 w-32 md:w-auto">
                   <Button
                     color="primary"
                     onClick={handleSearch}
@@ -419,7 +419,19 @@ export default function Home() {
                     radius="lg"
                     className="flex-1 md:flex-none text-black bg-gradient-to-r from-[#44D5DE] to-[#EDC7FC] font-semibold"
                   >
-                    {isVisualizeLoading ? "Visualizing..." : "Visualize Network"}
+                    <>
+                      {isVisualizeLoading ? (
+                        <>
+                          <span className="hidden md:inline">Visualizing Network</span>
+                          <span className="md:hidden">Visualizing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="hidden md:inline">Visualize Network</span>
+                          <span className="md:hidden">Visualize</span>
+                        </>
+                      )}
+                    </>
                   </Button>
                   <Button
                     color="primary"
@@ -463,21 +475,21 @@ export default function Home() {
 
       {/* Full screen visualization */}
       <div className="w-full h-full">
-      <SocialCardModal
-                    isOpen={isModalOpen}
-                    onClose={() => setIsModalOpen(false)}
-                    lensHandle={selectedNode?.label || 'availproject'}
-                    graphImageUrl={graphImageUrl}
-                    profileData={(
-                      {
-                        name: selectedNode?.label || 'availproject',
-                        followers: selectedNode?.followers || 0,
-                        following: selectedNode?.following || 0,
-                        posts: selectedNode?.posts || 0,
-                        score: selectedNode?.lensScore || 0
-                      })
-                    }
-                    />
+        <SocialCardModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          lensHandle={selectedNode?.label || 'availproject'}
+          graphImageUrl={graphImageUrl}
+          profileData={(
+            {
+              name: selectedNode?.label || 'availproject',
+              followers: selectedNode?.followers || 0,
+              following: selectedNode?.following || 0,
+              posts: selectedNode?.posts || 0,
+              score: selectedNode?.lensScore || 0
+            })
+          }
+        />
         <NetworkGraph
           nodes={networkData.nodes}
           links={networkData.links}
@@ -488,6 +500,18 @@ export default function Home() {
           onNetworkSwitch={handleNetworkSwitch}
         />
       </div>
+
+      {/* Powered by Avail tag - Desktop */}
+      <a 
+        href="https://www.availproject.org/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="absolute bottom-4 right-4 z-50 hidden md:flex items-center gap-2 px-3 py-1.5 bg-gray-900/70 backdrop-blur-sm rounded-full border border-gray-800 hover:bg-gray-800/70 transition-colors"
+      >
+        <span className="text-sm font-medium bg-gradient-to-r from-[#44D5DE] to-[#EDC7FC] text-transparent bg-clip-text">
+          Built by Avail
+        </span>
+      </a>
     </main>
   );
 }

@@ -279,10 +279,16 @@ export default function Dashboard({
             }}
           >
             <div className="w-12 h-1.5 bg-gray-700 rounded-full"></div>
+            {/* Mobile Avail Tag */}
+            <div className="absolute top-2 right-3 px-2 py-1 rounded-full bg-gray-900/70 backdrop-blur-sm">
+              <span className="text-xs font-medium bg-gradient-to-r from-[#44D5DE] to-[#EDC7FC] text-transparent bg-clip-text">
+                Built by Avail
+              </span>
+            </div>
           </div>
           
           {/* Mobile Dashboard Header */}
-          <div className="px-4 pb-2 text-center">
+          <div className="px-4 pb-2 text-center relative">
             <div>
               <p className="text-gray-400 text-xs mb-1">
                 {selectedNode ? 'Profile Statistics' : 'Network Explorer'}
@@ -291,6 +297,7 @@ export default function Dashboard({
                 {selectedNode ? selectedNode.label : 'Select a node'}
               </h2>
             </div>
+            
           </div>
 
           <Divider className="bg-gray-800" />
