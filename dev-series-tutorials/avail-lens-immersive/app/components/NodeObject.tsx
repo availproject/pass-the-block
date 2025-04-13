@@ -151,13 +151,13 @@ const NodeObject = ({
         }}
       >
         <mesh ref={ringRef} renderOrder={renderOrder}>
-          <torusGeometry args={[isHighlighted ? 2.7 : 0.9, isHighlighted ? 0.3 : 0.09, 32, 64]} />
+          <torusGeometry args={[isHighlighted ? 4.0 : 1.4, isHighlighted ? 0.3 : 0.09, 32, 64]} />
           <primitive object={gradientMaterial} attach="material" />
         </mesh>
 
         {hasValidImage ? (
           <mesh renderOrder={renderOrder}>
-            <sphereGeometry args={[isHighlighted ? 2.1 : 0.7, 32, 32]} />
+            <sphereGeometry args={[isHighlighted ? 3.2 : 1.1, 32, 32]} />
             <meshStandardMaterial
               map={texture}
               transparent={false}
@@ -192,8 +192,8 @@ const NodeObject = ({
       </group>
 
       <Text
-        position={[0, isHighlighted ? 3.2 : 1.3, 0]}
-        fontSize={isHighlighted ? 1.0 : 0.5}
+        position={[0, isHighlighted ? 4.5 : 1.8, 0]}
+        fontSize={isHighlighted ? 1.2 : 0.6}
         color={isHighlighted ? "white" : "rgba(255,255,255,0.8)"}
         anchorX="center"
         anchorY="middle"
