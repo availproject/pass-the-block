@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { Providers } from "./components/Providers";
 
 export const metadata: Metadata = {
-  title: "Lens Network Visualizer",
-  description: "Explore Lens Protocol connections in 3D space",
+  title: "Lens Network Visualizer by Avail",
+  description: "Celebrate Lens Protocol's integration with Avail Data Availability by exploring the Lens social graph in an immersive 3D space. Built by the Avail team.",
   icons: {
     icon: '/favicon.ico',
   },
