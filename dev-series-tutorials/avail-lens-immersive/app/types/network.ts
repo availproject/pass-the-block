@@ -1,16 +1,10 @@
 export interface FollowerNode {
   id: string;
-  address: string;
-  name?: string;
-  handle: string;
-  fullHandle: string;
-  picture?: string;
-  lensScore: number;
-  posts: number;
-  tips: number;
-  collects: number;
+  name: string;
+  picture: string;
   followers: number;
   following: number;
+  lensScore: number;
 }
 
 export interface FollowerLink {
@@ -23,17 +17,13 @@ export interface FollowerNetwork {
   links: FollowerLink[];
 }
 
+// Internal type for processing, includes address needed for API calls
 export interface RawFollower {
   id: string;
-  address: string;
-  name?: string;
-  handle: string;
-  fullHandle: string;
-  picture?: string;
-  lensScore: number;
-  posts: number;
-  tips: number;
-  collects: number;
+  name: string;
+  picture: string;
   followers: number;
   following: number;
+  lensScore: number;
+  address: string; // Keep address for internal use
 } 

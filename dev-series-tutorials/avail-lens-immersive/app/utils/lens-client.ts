@@ -58,7 +58,7 @@ query AccountStats($request: AccountStatsRequest!) {
 }
 `;
 
-// Get follower details by passing Account Address
+// Updated query to match Lens API schema
 const GET_FOLLOWER_DETAILS = gql`
 query Followers($request: FollowersRequest!) {
   followers(request: $request) {
@@ -110,44 +110,120 @@ const GET_PROFILES_BY_ADDRESS = gql`
   }
 `;
 
+// Add a new query for batch stats
+const GET_BATCH_STATS = gql`
+  query BatchStats($usernames: [String!]!) {
+    batchStats(usernames: $usernames) {
+      username
+      stats {
+        followers
+        following
+      }
+    }
+  }
+`;
+
+// Update the accountsBulk query to only include supported fields
+const GET_ACCOUNTS_BULK = gql`
+  query AccountsBulk($request: AccountsBulkRequest!) {
+    accountsBulk(request: $request) {
+      address
+      username {
+        id
+        localName
+        value
+      }
+      metadata {
+        name
+        picture
+        bio
+        coverPicture
+      }
+    }
+  }
+`;
+
 // New public client for modern Lens API interactions
 export const publicClient = PublicClient.create({
   environment: mainnet,
   origin: typeof window !== 'undefined' ? window.location.origin : 'lenscollective.me',
 });
 
+interface FollowerItem {
+  follower: {
+    address: string;
+    username: {
+      localName: string;
+    };
+    metadata?: {
+      picture?: string;
+    };
+    score: number;
+  };
+}
+
+interface BatchStatsResponse {
+  batchStats: Array<{
+    username: string;
+    stats?: {
+      followers: number;
+      following: number;
+    };
+  }>;
+}
+
 export async function getAccountMetadata(lensHandle: string): Promise<RawFollower> {
-  const result = await apolloClient.query({
-    query: ACCOUNT_METADATA,
-    variables: { accountStatsRequest: { 
-      username: {
-          localName: lensHandle
-        }
-      },
-      accountRequest: {
+  console.log('🔍 Fetching account metadata for handle:', lensHandle);
+  
+  try {
+    const result = await apolloClient.query({
+      query: ACCOUNT_METADATA,
+      variables: { accountStatsRequest: { 
         username: {
-          localName: lensHandle
+            localName: lensHandle
+          }
+        },
+        accountRequest: {
+          username: {
+            localName: lensHandle
+          }
         }
       }
-    }
-  });
-  
-  const { account, accountStats } = result.data;
+    });
+    
+    console.log('📊 Account metadata query result:', {
+      hasData: !!result.data,
+      hasAccount: !!result.data?.account,
+      hasStats: !!result.data?.accountStats
+    });
 
-  return {
-    id: account.username.id,
-    address: account.address,
-    handle: account.username.localName,
-    fullHandle: account.username.value,
-    picture: account.metadata?.picture,
-    name: account.metadata?.name,
-    lensScore: account.score,
-    posts: accountStats.feedStats.posts,
-    tips: accountStats.feedStats.tips,
-    collects: accountStats.feedStats.collects,
-    followers: accountStats.graphFollowStats.followers,
-    following: accountStats.graphFollowStats.following
-  };
+    const { account, accountStats } = result.data;
+
+    const followerData = {
+      id: account.address,
+      name: `lens/${account.username.localName}`,
+      picture: account.metadata?.picture || 'default_profile.png',
+      followers: accountStats.graphFollowStats.followers,
+      following: accountStats.graphFollowStats.following,
+      lensScore: account.score,
+      address: account.address // Store address for API calls
+    };
+
+    console.log('✅ Account metadata processed:', {
+      id: followerData.id,
+      name: followerData.name,
+      followers: followerData.followers,
+      address: followerData.address
+    });
+
+    return followerData;
+  } catch (error) {
+    console.error('❌ Error fetching account metadata:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    throw error;
+  }
 }
 
 export async function getAccountStats(lensHandle: string) {
@@ -172,58 +248,97 @@ export async function getAccountStats(lensHandle: string) {
   };
 }
 
-export async function getFollowerDetails(accountAddress: string): Promise<RawFollower[]> {
-  //get Follower Details
-  const result = await apolloClient.query({
-    query: GET_FOLLOWER_DETAILS,
-    variables: {
-      request: {
-        account: accountAddress,
-        orderBy: "ACCOUNT_SCORE",
-        pageSize: "TEN"
-      }
-    }
-  });
+export async function getFollowerDetails(accountAddress: string, limit: number = 150): Promise<RawFollower[]> {
+  console.log('🔍 Fetching follower details for address:', accountAddress);
+  
+  try {
+    let allFollowers: RawFollower[] = [];
+    let cursor: string | null = null;
+    let hasMore = true;
 
-  const followerItems = result.data.followers.items;
-
-
-  const followerData = await Promise.all(
-  followerItems.map(async (item: any) => {
-    const follower = item.follower;
-
-    // Fetch stats for this follower
-    const statsResult = await apolloClient.query({
-      query: ACCOUNT_STATS,
-      variables:  {
-        request: {
-          username: {
-            localName: follower.username.localName
+    while (hasMore && allFollowers.length < limit) {
+      const result: { data: { followers: { items: FollowerItem[]; pageInfo: { nextCursor: string | null } } } } = await apolloClient.query({
+        query: GET_FOLLOWER_DETAILS,
+        variables: {
+          request: {
+            account: accountAddress,
+            orderBy: "ACCOUNT_SCORE",
+            cursor: cursor
           }
         }
+      });
+
+      console.log('📊 Follower details query result:', {
+        hasData: !!result.data,
+        hasFollowers: !!result.data?.followers,
+        followerCount: result.data?.followers?.items?.length || 0,
+        currentTotal: allFollowers.length
+      });
+
+      const followerItems = result.data.followers.items;
+      const batchSize = 25;
+      const followerData: RawFollower[] = [];
+
+      // Process followers in batches of 25
+      for (let i = 0; i < followerItems.length; i += batchSize) {
+        const batch = followerItems.slice(i, i + batchSize);
+        console.log(`🔄 Processing batch ${i / batchSize + 1} of ${Math.ceil(followerItems.length / batchSize)}`);
+
+        // Process each follower in the batch
+        const batchPromises = batch.map(async (item: FollowerItem) => {
+          const follower = item.follower;
+          const statsResult = await apolloClient.query({
+            query: ACCOUNT_STATS,
+            variables: {
+              request: {
+                username: {
+                  localName: follower.username.localName
+                }
+              }
+            }
+          });
+
+          return {
+            id: follower.address,
+            name: `lens/${follower.username.localName}`,
+            picture: follower.metadata?.picture || "default_profile.png",
+            followers: statsResult.data.accountStats.graphFollowStats.followers,
+            following: statsResult.data.accountStats.graphFollowStats.following,
+            lensScore: follower.score,
+            address: follower.address
+          };
+        });
+
+        // Wait for all promises in the batch to complete
+        const batchResults = await Promise.all(batchPromises);
+        followerData.push(...batchResults);
       }
+
+      allFollowers.push(...followerData);
+
+      // Check if we have more followers to fetch
+      hasMore = result.data?.followers?.pageInfo?.nextCursor !== null;
+      cursor = result.data?.followers?.pageInfo?.nextCursor;
+
+      // Stop if we've reached our limit
+      if (allFollowers.length >= limit) {
+        allFollowers = allFollowers.slice(0, limit);
+        break;
+      }
+    }
+
+    console.log('✅ All followers processed:', {
+      totalFollowers: allFollowers.length
     });
 
-    const stats = statsResult.data;
-
-    return {
-      id: follower.username?.id,
-      address: follower.address,
-      handle: follower.username.localName || `user_${follower.id}`,
-      fullHandle: follower.username.value,
-      picture: follower.metadata?.picture || "default_image.png",
-      name: follower.metadata?.name || `user_${follower.username.id}`,
-      lensScore: follower.score,
-      posts: stats.accountStats.feedStats.posts,
-      tips: stats.accountStats.feedStats.tips,
-      collects: stats.accountStats.feedStats.collects,
-      followers: stats.accountStats.graphFollowStats.followers,
-      following: stats.accountStats.graphFollowStats.following
-    };
-  })
-);
-
-  return followerData;
+    return allFollowers;
+  } catch (error) {
+    console.error('❌ Error fetching follower details:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    throw error;
+  }
 } 
 
 /**
@@ -232,51 +347,68 @@ export async function getFollowerDetails(accountAddress: string): Promise<RawFol
  * @returns The Lens account if found, null otherwise
  */
 export async function fetchAccountByAddress(address: string) {
-  if (!address) return null;
+  if (!address) {
+    console.log('❌ No address provided to fetchAccountByAddress');
+    return null;
+  }
   
   try {
     // Format address to lowercase for consistency
     const formattedAddress = address.toLowerCase();
+    console.log('🔍 Fetching account for address:', formattedAddress);
     
-    // Use Apollo to fetch profiles by address
+    // Use Apollo to fetch accounts by address
+    console.log('📡 Making GraphQL request...');
     const result = await apolloClient.query({
-      query: GET_PROFILES_BY_ADDRESS,
+      query: GET_ACCOUNTS_BULK,
       variables: {
         request: {
-          where: {
-            ownedBy: [formattedAddress]
-          }
+          addresses: [formattedAddress]
         }
       }
     });
     
-    const profiles = result.data?.profiles?.items || [];
+    console.log('📊 GraphQL response:', {
+      hasData: !!result.data,
+      hasAccountsBulk: !!result.data?.accountsBulk,
+      accountsCount: result.data?.accountsBulk?.length || 0,
+      rawResponse: result.data
+    });
     
-    // If we found profiles, return the first one
-    if (profiles.length > 0) {
-      const profile = profiles[0];
+    const accounts = result.data?.accountsBulk || [];
+    
+    // If we found accounts, return the first one
+    if (accounts.length > 0) {
+      const account = accounts[0];
+      console.log('✅ Found account:', {
+        address: account.address,
+        username: account.username,
+        metadata: account.metadata
+      });
       
-      // Create a new object with cleaned values instead of modifying the original
-      const formattedProfile = {
-        id: profile.id,
-        handle: profile.handle 
-          ? {
-              fullHandle: profile.handle.fullHandle?.replace('lens/', '') || '',
-              localName: profile.handle.localName?.replace('lens/', '') || ''
-            }
-          : null,
-        // Add other properties as needed to match the LensAccount interface
-        stats: profile.stats,
-        metadata: profile.metadata
+      // Format the handle properly
+      const handle = account.username?.value 
+        ? {
+            fullHandle: account.username.value,
+            localName: account.username.localName || account.username.value.replace('lens/', '')
+          }
+        : null;
+
+      return {
+        id: account.address,
+        handle,
+        metadata: account.metadata || null,
+        address: account.address
       };
-      
-      return formattedProfile;
     }
     
-    // If no profiles found, return null
+    console.log('⚠️ No accounts found for address:', formattedAddress);
     return null;
   } catch (error) {
-    console.error(`Error fetching Lens account:`, error);
+    console.error('❌ Error fetching Lens account:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
     return null;
   }
 }

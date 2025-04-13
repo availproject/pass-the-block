@@ -77,7 +77,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
           // Listen for account changes
           window.ethereum.on('accountsChanged', handleAccountsChanged);
           window.ethereum.on('disconnect', handleDisconnect);
-          
+          console.log('🔍 Connected to wallet:', accounts[0]);
           // Try to fetch Lens account
           fetchLensAccount(accounts[0]);
         }
