@@ -251,14 +251,12 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
   const spacedNodes = adjustedNodes.map(node => {
     const spacingFactor = 1.4; // Increase overall spacing by 40%
     
-    // Only apply z-adjustment to the network owner node (initial handle or searched handle)
-    // Not to any node that gets clicked on
-    const isNetworkOwner = !!(
-      (initialHandle && node.label.toLowerCase() === initialHandle.toLowerCase())
-    );
+    // Only apply z-adjustment to avail_project and only during initial load
+    const isAvailProject = node.label.toLowerCase() === 'lens/avail_project';
+    const isInitialLoad = !targetHandle; // No target handle means we're in initial load
     
-    // Push network owner node deeper into the scene
-    const zAdjustment = isNetworkOwner ? +30 : 0;
+    // Push avail_project node deeper into the scene only during initial load
+    const zAdjustment = (isAvailProject && isInitialLoad) ? +30 : 0;
     
     return {
       ...node,

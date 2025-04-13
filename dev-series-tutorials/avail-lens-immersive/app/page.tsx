@@ -244,10 +244,47 @@ export default function Home() {
         edges: processedData.edges
       };
       
-      // Create completely new network data
+      // Find overlapping nodes between networks
+      interface NetworkNode {
+        id: string;
+        label: string;
+        position: [number, number, number];
+        name?: string;
+      }
+      
+      // Ensure nodes are properly typed before mapping
+      const typedExistingNodes = networkData.nodes as NetworkNode[];
+      const typedNewNodes = processedWithOffset.nodes as NetworkNode[];
+      
+      const existingNodeMap = new Map(typedExistingNodes.map(node => [node.label.toLowerCase(), node]));
+      const newNodeMap = new Map(typedNewNodes.map(node => [node.label.toLowerCase(), node]));
+      
+      // Create inter-cluster connections
+      const interClusterLinks: { source: string; target: string }[] = [];
+      
+      // Find the main node of the new network (first node)
+      const newMainNode = typedNewNodes[0];
+      if (!newMainNode) {
+        throw new Error('No main node found in new network');
+      }
+      
+      // For each node in the new network
+      for (const newNode of typedNewNodes) {
+        // If this node exists in the old network
+        const existingNode = existingNodeMap.get(newNode.label.toLowerCase());
+        if (existingNode && newNode.id !== newMainNode.id) {
+          // Create a connection between the main node and the existing node
+          interClusterLinks.push({
+            source: newMainNode.id,
+            target: existingNode.id
+          });
+        }
+      }
+      
+      // Create completely new network data with inter-cluster connections
       setNetworkData({
         nodes: [...networkData.nodes, ...processedWithOffset.nodes],
-        links: [...networkData.links, ...processedWithOffset.edges]
+        links: [...networkData.links, ...processedWithOffset.edges, ...interClusterLinks]
       });
       
       // Increment cluster count
