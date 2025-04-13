@@ -17,12 +17,13 @@ export interface FollowerNetwork {
   links: FollowerLink[];
 }
 
+// Internal type for processing, includes address needed for API calls
 export interface RawFollower {
   id: string;
-  handle: string;
+  name: string;
   picture: string;
-  following: string;
-  followersCount: number;
-  followingCount: number;
+  followers: number;
+  following: number;
   lensScore: number;
+  address: string; // Keep address for internal use
 } 
