@@ -286,123 +286,62 @@ export async function getFollowerDetails(accountAddress: string, limit: number =
   console.log('🔍 Fetching follower details for address:', accountAddress);
   
   try {
-    // First check if the account has any followers
-    // We'll make a lightweight query to get just the follower count
-    const statsQuery = gql`
-      query AccountFollowerCount($request: FollowersRequest!) {
-        followers(request: $request) {
-          pageInfo {
-            prev
-            next
-          }
-          items {
-            follower {
-              address
-            }
-          }
-        }
-      }
-    `;
-    
-    const statsResult = await apolloClient.query({
-      query: statsQuery,
+    const result = await apolloClient.query({
+      query: GET_FOLLOWER_DETAILS,
       variables: {
         request: {
           account: accountAddress,
+          orderBy: "ACCOUNT_SCORE"
         }
       }
     });
-    
-    // Check if there are any followers by looking at the items array
-    const hasFollowers = statsResult.data?.followers?.items?.length > 0;
-    console.log(`Account has followers: ${hasFollowers}`);
-    
-    // If there are no followers, return an empty array immediately
-    if (!hasFollowers) {
-      console.log('Account has no followers, returning empty array');
+
+    console.log('📊 Follower details query result:', {
+      hasData: !!result.data,
+      hasFollowers: !!result.data?.followers,
+      followerCount: result.data?.followers?.items?.length || 0
+    });
+
+    if (!result.data?.followers?.items?.length) {
+      console.log('No followers found, returning empty array');
       return [];
     }
-    
-    let allFollowers: RawFollower[] = [];
-    let cursor: string | null = null;
-    let hasMore = true;
 
-    while (hasMore && allFollowers.length < limit) {
-      const result: { data: { followers: { items: FollowerItem[]; pageInfo: { nextCursor: string | null } } } } = await apolloClient.query({
-        query: GET_FOLLOWER_DETAILS,
+    const followerItems = result.data.followers.items;
+    const followerData: RawFollower[] = [];
+
+    // Process each follower
+    const followerPromises = followerItems.map(async (item: FollowerItem) => {
+      const follower = item.follower;
+      const statsResult = await apolloClient.query({
+        query: ACCOUNT_STATS,
         variables: {
           request: {
-            account: accountAddress,
-            orderBy: "ACCOUNT_SCORE",
-            cursor: cursor
+            username: {
+              localName: follower.username.localName
+            }
           }
         }
       });
 
-      console.log('📊 Follower details query result:', {
-        hasData: !!result.data,
-        hasFollowers: !!result.data?.followers,
-        followerCount: result.data?.followers?.items?.length || 0,
-        currentTotal: allFollowers.length
-      });
-
-      const followerItems = result.data.followers.items;
-      const batchSize = 50;
-      const followerData: RawFollower[] = [];
-
-      // Process followers in batches of 50
-      for (let i = 0; i < followerItems.length; i += batchSize) {
-        const batch = followerItems.slice(i, i + batchSize);
-        console.log(`🔄 Processing batch ${i / batchSize + 1} of ${Math.ceil(followerItems.length / batchSize)}`);
-
-        // Process each follower in the batch
-        const batchPromises = batch.map(async (item: FollowerItem) => {
-          const follower = item.follower;
-          const statsResult = await apolloClient.query({
-            query: ACCOUNT_STATS,
-            variables: {
-              request: {
-                username: {
-                  localName: follower.username.localName
-                }
-              }
-            }
-          });
-
-          return {
-            id: follower.address,
-            name: follower.username.localName,
-            picture: follower.metadata?.picture || "default_image.png",
-            followers: statsResult.data.accountStats.graphFollowStats.followers,
-            following: statsResult.data.accountStats.graphFollowStats.following,
-            lensScore: follower.score,
-            address: follower.address
-          };
-        });
-
-        // Wait for all promises in the batch to complete
-        const batchResults = await Promise.all(batchPromises);
-        followerData.push(...batchResults);
-      }
-
-      allFollowers.push(...followerData);
-
-      // Check if we have more followers to fetch
-      hasMore = result.data?.followers?.pageInfo?.nextCursor !== null;
-      cursor = result.data?.followers?.pageInfo?.nextCursor;
-
-      // Stop if we've reached our limit
-      if (allFollowers.length >= limit) {
-        allFollowers = allFollowers.slice(0, limit);
-        break;
-      }
-    }
-
-    console.log('✅ All followers processed:', {
-      totalFollowers: allFollowers.length
+      return {
+        id: follower.address,
+        name: follower.username.localName,
+        picture: follower.metadata?.picture || "default_image.png",
+        followers: statsResult.data.accountStats.graphFollowStats.followers,
+        following: statsResult.data.accountStats.graphFollowStats.following,
+        lensScore: follower.score,
+        address: follower.address
+      };
     });
 
-    return allFollowers;
+    // Wait for all follower data to be processed
+    const followers = await Promise.all(followerPromises);
+    console.log('✅ All followers processed:', {
+      totalFollowers: followers.length
+    });
+
+    return followers;
   } catch (error) {
     console.error('❌ Error fetching follower details:', {
       error: error instanceof Error ? error.message : 'Unknown error',
