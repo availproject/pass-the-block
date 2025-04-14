@@ -54,15 +54,21 @@ export default function SocialCardModal({
           if (cardRef.current && !capturedRef.current) {
             capturedRef.current = true; // Mark as captured before the async operation
             console.log("Capturing social card...");
-            const canvas = await html2canvas(cardRef.current, {
-              scale: 2,
-              logging: false,
-              useCORS: true,
-              allowTaint: true,
-              backgroundColor: '#1E2129',
-            });
-            const imageUrl = canvas.toDataURL('image/png');
-            onCardCapture(imageUrl);
+            
+            // Only proceed with capture if we have a valid graph image
+            if (graphImageUrl && graphImageUrl.length > 0) {
+              const canvas = await html2canvas(cardRef.current, {
+                scale: 2,
+                logging: false,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#1E2129',
+              });
+              const imageUrl = canvas.toDataURL('image/png');
+              onCardCapture(imageUrl);
+            } else {
+              console.log("No graph image available, skipping social card capture");
+            }
           }
         } catch (error) {
           console.error('Error capturing social card:', error);
@@ -72,7 +78,7 @@ export default function SocialCardModal({
       
       return () => clearTimeout(timer);
     }
-  }, [isOpen, isMounted, onCardCapture]);
+  }, [isOpen, isMounted, onCardCapture, graphImageUrl]);
 
   const handleDownload = async () => {
     if (!cardRef.current) return;
@@ -209,9 +215,6 @@ export default function SocialCardModal({
                       (e.target as HTMLImageElement).src = '/default_image.png';
                     }}
                   />
-                  <div className="absolute bottom-2 right-2 text-xs text-[#8A8F9D] bg-[#2A2E38]/80 px-2 py-1 rounded-md">
-                    Powered by Avail
-                  </div>
                 </div>
               ) : (
                 <div className="w-full h-full flex items-center justify-center">

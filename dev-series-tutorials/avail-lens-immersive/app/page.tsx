@@ -13,6 +13,7 @@ import { useWeb3 } from './components/Providers';
 import { authenticateForPosting, postToLens } from './utils/lens-auth';
 import toast, { Toaster } from 'react-hot-toast';
 import { uploadImageToGrove } from './utils/grove-storage';
+import ReactDOM from 'react-dom/client';
 
 
 export default function Home() {
@@ -28,6 +29,8 @@ export default function Home() {
   const [isModalLoading, setIsModalLoading] = useState(false);
   const [error, setError] = useState('');
   const [lastPostId, setLastPostId] = useState<string | null>(null);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [captureKey, setCaptureKey] = useState(0);
   // Start with null initially so no animation occurs
   const [targetHandle, setTargetHandle] = useState<string | null>(null);
   const [networkData, setNetworkData] = useState({
@@ -483,37 +486,60 @@ export default function Home() {
 
     setIsModalLoading(true);
     setError('');
+    setIsCapturing(true);
 
     try {
-      // NOTE: We are using the API directly since direct canvas capture doesn't work in the deployment environment.
-      // This approach avoids having to use the filesystem which is read-only in Vercel.
-      const cleanHandle = selectedNode?.label || 'availproject';
-      
-      console.log("Using API to generate network graph for:", cleanHandle);
-      const response = await fetch(`/api/action?handle=${cleanHandle}`);
-      
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to generate image');
-      }
-      
-      const data = await response.json();
-      setGraphImageUrl(data.imageUrl);
-      
-      // Show the social card modal with the generated graph
-      console.log("Generating social card with captured network graph...");
-      
-      // Show the modal with the generated image - it will trigger the screenshot
+      // Wait for NetworkCapture to complete before showing modal
+      await new Promise((resolve) => {
+        const handleCapture = (imageUrl: string) => {
+          console.log("Network capture received, length:", imageUrl.length);
+          setGraphImageUrl(imageUrl);
+          resolve(imageUrl);
+        };
+
+        // Force a remount of NetworkCapture
+        setCaptureKey(prev => prev + 1);
+        
+        // Set up temporary capture handler
+        const tempCapture = document.createElement('div');
+        tempCapture.id = 'network-capture-container';
+        document.body.appendChild(tempCapture);
+        
+        const cleanup = () => {
+          if (tempCapture && tempCapture.parentNode) {
+            tempCapture.parentNode.removeChild(tempCapture);
+          }
+        };
+
+        // Render NetworkCapture
+        const captureElement = (
+          <NetworkCapture
+            key={captureKey}
+            profileHandle={selectedNode?.label || 'availproject'}
+            existingNodes={networkData.nodes}
+            existingLinks={networkData.links}
+            onCapture={handleCapture}
+          />
+        );
+
+        // Use ReactDOM to render
+        const root = ReactDOM.createRoot(tempCapture);
+        root.render(captureElement);
+
+        // Clean up after 5 seconds (safety timeout)
+        setTimeout(() => {
+          cleanup();
+          resolve(null);
+        }, 5000);
+      });
+
+      // Now that we have the graph image, show the modal
       setIsModalOpen(true);
       
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
       console.error('Error posting to Lens:', err);
-      
-      // Close modal if there was an error
       setIsModalOpen(false);
-      
-      // Show error toast instead of alert
       toast.error(`Error posting to Lens: ${err instanceof Error ? err.message : 'Unknown error'}`, {
         icon: '❌',
         duration: 5000,
@@ -525,6 +551,7 @@ export default function Home() {
       });
     } finally {
       setIsModalLoading(false);
+      setIsCapturing(false);
     }
   };
 
@@ -693,22 +720,28 @@ export default function Home() {
         
       {/* Full screen visualization */}
       <div className="w-full h-full">
-        <SocialCardModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          lensHandle={selectedNode?.label || 'availproject'}
-          graphImageUrl={graphImageUrl}
-          profileData={(
-            {
+        {/* Only show SocialCardModal after we have a graph image */}
+        {graphImageUrl && (
+          <SocialCardModal
+            isOpen={isModalOpen}
+            onClose={() => {
+              setIsModalOpen(false);
+              setGraphImageUrl('');
+            }}
+            lensHandle={selectedNode?.label || 'availproject'}
+            graphImageUrl={graphImageUrl}
+            profileData={{
               name: selectedNode?.label || 'availproject',
               followers: selectedNode?.followers || 0,
               following: selectedNode?.following || 0,
               posts: selectedNode?.posts || 0,
               score: selectedNode?.lensScore || 0
-            })
-          }
-          onCardCapture={handleSocialCardCapture}
-        />
+            }}
+            onCardCapture={handleSocialCardCapture}
+          />
+        )}
+        
+        {/* Regular network graph for display */}
         <NetworkGraph
           nodes={networkData.nodes}
           links={networkData.links}
