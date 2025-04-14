@@ -122,7 +122,16 @@ async function takeScreenshot(lensHandle: string): Promise<Buffer> {
         console.log(`Launching puppeteer browser...`);
         browser = await puppeteer.launch({
             headless: true,
-            defaultViewport: { width: 1280, height: 1280 } // Square viewport for better capture
+            defaultViewport: { width: 1280, height: 1280 }, // Square viewport for better capture
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--no-first-run',
+                '--no-zygote',
+                '--disable-gpu'
+            ]
         });
         
         console.log(`Browser launched, creating new page...`);
@@ -194,7 +203,16 @@ async function takeFallbackScreenshot(lensHandle: string): Promise<Buffer> {
     console.log(`Launching fallback puppeteer browser...`);
     browser = await puppeteer.launch({
       headless: true,
-      defaultViewport: { width: 1280, height: 1280 } // Square viewport for better capture
+      defaultViewport: { width: 1280, height: 1280 }, // Square viewport for better capture
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu'
+      ]
     });
     
     console.log(`Fallback browser launched, creating new page...`);
