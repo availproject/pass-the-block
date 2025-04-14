@@ -243,8 +243,8 @@ export default function NetworkCapture({
       ref={containerRef} 
       className="w-full h-full bg-black flex items-center justify-center" 
       style={{ 
-        width: '680px', 
-        height: '680px', 
+        width: '720px', 
+        height: '720px', 
         position: 'relative', 
         overflow: 'hidden' 
       }}
