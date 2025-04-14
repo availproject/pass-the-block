@@ -192,7 +192,7 @@ const NodeObject = ({
       </group>
 
       <Text
-        position={[0, isHighlighted ? 4.5 : 1.8, 0]}
+        position={[0, isHighlighted ? 5.5 : 1.8, 0]}
         fontSize={isHighlighted ? 1.2 : 0.6}
         color={isHighlighted ? "white" : "rgba(255,255,255,0.8)"}
         anchorX="center"

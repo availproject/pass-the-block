@@ -11,11 +11,14 @@
   "dependencies": {
     "@apollo/client": "^3.13.5",
     "@heroicons/react": "^2.2.0",
+    "@lens-chain/sdk": "^1.0.3",
+    "@lens-chain/storage-client": "^1.0.4",
     "@lens-protocol/client": "^0.0.0-canary-20250402201604",
     "@lens-protocol/metadata": "^1.2.0",
     "@nextui-org/react": "^2.4.8",
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.18.0",
+    "ethers": "^6.13.5",
     "framer-motion": "^11.18.2",
     "graphql": "^16.8.1",
     "html2canvas": "^1.4.1",
@@ -26,10 +29,13 @@
     "puppeteer-core": "^24.4.0",
     "react": "^18",
     "react-dom": "^18",
+    "react-hot-toast": "^2.5.2",
     "react-select": "^5.10.1",
     "sharp": "^0.34.0",
     "three": "^0.162.0",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "viem": "^2.26.3",
+    "zksync-ethers": "^6.17.0"
   },
   "devDependencies": {
     "@types/node": "^20",

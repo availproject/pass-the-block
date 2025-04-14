@@ -3,6 +3,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
+import { XMarkIcon } from '@heroicons/react/24/outline';
+import { useWeb3 } from '../components/Providers';
 
 type SocialCardModalProps = {
   isOpen: boolean;
@@ -27,6 +29,7 @@ export default function SocialCardModal({
 }: SocialCardModalProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isMounted, setIsMounted] = useState(false);
+  const { lensAccount } = useWeb3();
 
   useEffect(() => {
     setIsMounted(true);
@@ -50,25 +53,57 @@ export default function SocialCardModal({
     }
   };
 
+  // Handle backdrop click - close modal when clicking outside the card
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    // Only close if the click was directly on the backdrop element
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
+  // Extract username from the lens handle for the URL
+  const getLensUsername = () => {
+    // Use the logged-in user's handle if available
+    const handleToUse = lensAccount?.handle?.localName || '';
+    
+    if (handleToUse) {
+      return handleToUse;
+    }
+    
+    // Fallback to the displayed profile handle
+    // Check if it starts with 'lens/'
+    if (lensHandle.startsWith('lens/')) {
+      return lensHandle.substring(5);
+    }
+    
+    // Remove .lens suffix if it exists
+    if (lensHandle.endsWith('.lens')) {
+      return lensHandle.substring(0, lensHandle.length - 5);
+    }
+    
+    // Otherwise just return the handle
+    return lensHandle;
+  };
+
   if (!isOpen || !isMounted) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+      onClick={handleBackdropClick}
+    >
       <div className="relative w-full max-w-4xl">
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute -top-10 right-0 p-2 text-gray-300 hover:text-white transition-colors"
-          aria-label="Close modal"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
-
         {/* Social Card Container */}
-        <div className="bg-[#1E2129] rounded-xl overflow-hidden border border-[#3A3E48] shadow-xl">
+        <div className="bg-[#1E2129] rounded-xl overflow-hidden border border-[#3A3E48] shadow-xl relative">
+          {/* Close Button - Now inside the card */}
+          <button
+            onClick={onClose}
+            className="absolute top-3 right-3 z-10 p-1.5 bg-[#2A2E38]/80 text-gray-300 hover:text-white transition-colors rounded-full hover:bg-[#3A3E48]/80"
+            aria-label="Close modal"
+          >
+            <XMarkIcon className="h-5 w-5" />
+          </button>
+
           <div ref={cardRef} className="flex flex-col md:flex-row">
             {/* Profile Section */}
             <div className="w-full md:w-[300px] p-6 bg-gradient-to-b from-[#2A2E38] to-[#1E2129]">
@@ -102,6 +137,18 @@ export default function SocialCardModal({
                   />
                 </div>
               </div>
+              
+              {/* View on Lens link - now always shows the logged-in user's profile */}
+              <div className="text-center mt-4">
+                <a 
+                  href={`https://hey.xyz/u/${getLensUsername()}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-[#8A8F9D] hover:text-[#44D5DE] transition-colors"
+                >
+                  @hey.xyz/u/{getLensUsername()}
+                </a>
+              </div>
             </div>
 
             {/* Graph Section */}
@@ -119,16 +166,6 @@ export default function SocialCardModal({
                 <div className="text-[#8A8F9D]">Loading graph...</div>
               )}
             </div>
-          </div>
-
-          {/* Download Button */}
-          <div className="border-t border-[#3A3E48] p-4 bg-[#2A2E38]">
-            <button
-              onClick={handleDownload}
-              className="w-full py-2 bg-gradient-to-r from-[#3CA3FC] to-[#EB7BF4] text-white font-medium rounded-lg hover:opacity-90 transition-opacity"
-            >
-              Download Card
-            </button>
           </div>
         </div>
       </div>

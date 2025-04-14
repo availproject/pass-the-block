@@ -10,6 +10,12 @@ export default function ScreenshotPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Signal when the component is mounted (for puppeteer to detect)
+    const element = document.createElement('div');
+    element.id = 'screenshot-ready-indicator';
+    element.style.display = 'none';
+    document.body.appendChild(element);
+
     const loadNetwork = async () => {
       // Get the handle from the URL search params
       const params = new URLSearchParams(window.location.search);
@@ -18,11 +24,20 @@ export default function ScreenshotPage() {
       if (!handle) return;
 
       try {
+        console.log('Screenshot page loading network for:', handle);
         const cleanHandle = handle.replace('lens/', '').replace('.lens', '').toLowerCase();
-        const response = await fetch(`/api/network/${cleanHandle}`);
+        const response = await fetch(`/api/network/${cleanHandle}`, {
+          // Use cache: no-store to avoid stale data
+          cache: 'no-store'
+        });
+        
         if (!response.ok) throw new Error('Network request failed');
         
         const data = await response.json();
+        console.log('Screenshot page received network data with', 
+          data.nodes?.length || 0, 'nodes and', 
+          data.links?.length || 0, 'links');
+        
         const processedData = processNetworkData(data);
         
         setNetworkData({
@@ -31,7 +46,9 @@ export default function ScreenshotPage() {
         });
 
         // Set the target handle for focusing the camera
-        setTargetHandle(processedData.nodes[0]?.label || null);
+        const targetLabel = processedData.nodes[0]?.label || null;
+        console.log('Setting target handle to:', targetLabel);
+        setTargetHandle(targetLabel);
       } catch (error) {
         console.error('Error loading network:', error);
       } finally {
@@ -40,6 +57,13 @@ export default function ScreenshotPage() {
     };
 
     loadNetwork();
+    
+    // Clean up the indicator element on unmount
+    return () => {
+      if (element && element.parentNode) {
+        element.parentNode.removeChild(element);
+      }
+    };
   }, []);
 
   if (isLoading) {

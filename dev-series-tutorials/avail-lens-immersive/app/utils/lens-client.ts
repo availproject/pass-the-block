@@ -143,6 +143,48 @@ const GET_ACCOUNTS_BULK = gql`
   }
 `;
 
+// Add the new accountsAvailable query
+const ACCOUNTS_AVAILABLE = gql`
+  query AccountsAvailable($request: AccountsAvailableRequest!) {
+    accountsAvailable(request: $request) {
+      items {
+        ... on AccountManaged {
+          account {
+            address
+            username {
+              value
+            }
+            metadata {
+              name
+              picture
+            }
+          }
+          permissions {
+            canExecuteTransactions
+            canTransferTokens
+            canTransferNative
+            canSetMetadataUri
+          }
+          addedAt
+        }
+        ... on AccountOwned {
+          account {
+            address
+            username {
+              value
+            }
+            metadata {
+              name
+              picture
+            }
+          }
+          addedAt
+        }
+      }
+    }
+  }
+`;
+
 // New public client for modern Lens API interactions
 export const publicClient = PublicClient.create({
   environment: mainnet,
@@ -201,8 +243,8 @@ export async function getAccountMetadata(lensHandle: string): Promise<RawFollowe
 
     const followerData = {
       id: account.address,
-      name: `lens/${account.username.localName}`,
-      picture: account.metadata?.picture || 'default_profile.png',
+      name: account.username.localName,
+      picture: account.metadata?.picture || 'default_image.png',
       followers: accountStats.graphFollowStats.followers,
       following: accountStats.graphFollowStats.following,
       lensScore: account.score,
@@ -252,6 +294,36 @@ export async function getFollowerDetails(accountAddress: string, limit: number =
   console.log('🔍 Fetching follower details for address:', accountAddress);
   
   try {
+    // First check if the account has any followers
+    // We'll make a lightweight query to get just the follower count
+    const statsQuery = gql`
+      query AccountFollowerCount($request: FollowersRequest!) {
+        followers(request: $request) {
+          pageInfo {
+            totalCount
+          }
+        }
+      }
+    `;
+    
+    const statsResult = await apolloClient.query({
+      query: statsQuery,
+      variables: {
+        request: {
+          account: accountAddress,
+        }
+      }
+    });
+    
+    const followerCount = statsResult.data?.followers?.pageInfo?.totalCount || 0;
+    console.log(`Account has ${followerCount} followers`);
+    
+    // If there are no followers, return an empty array immediately
+    if (followerCount === 0) {
+      console.log('Account has no followers, returning empty array');
+      return [];
+    }
+    
     let allFollowers: RawFollower[] = [];
     let cursor: string | null = null;
     let hasMore = true;
@@ -276,10 +348,10 @@ export async function getFollowerDetails(accountAddress: string, limit: number =
       });
 
       const followerItems = result.data.followers.items;
-      const batchSize = 25;
+      const batchSize = 50;
       const followerData: RawFollower[] = [];
 
-      // Process followers in batches of 25
+      // Process followers in batches of 50
       for (let i = 0; i < followerItems.length; i += batchSize) {
         const batch = followerItems.slice(i, i + batchSize);
         console.log(`🔄 Processing batch ${i / batchSize + 1} of ${Math.ceil(followerItems.length / batchSize)}`);
@@ -300,8 +372,8 @@ export async function getFollowerDetails(accountAddress: string, limit: number =
 
           return {
             id: follower.address,
-            name: `lens/${follower.username.localName}`,
-            picture: follower.metadata?.picture || "default_profile.png",
+            name: follower.username.localName,
+            picture: follower.metadata?.picture || "default_image.png",
             followers: statsResult.data.accountStats.graphFollowStats.followers,
             following: statsResult.data.accountStats.graphFollowStats.following,
             lensScore: follower.score,
@@ -357,49 +429,58 @@ export async function fetchAccountByAddress(address: string) {
     const formattedAddress = address.toLowerCase();
     console.log('🔍 Fetching account for address:', formattedAddress);
     
-    // Use Apollo to fetch accounts by address
-    console.log('📡 Making GraphQL request...');
+    // Use Apollo to fetch accounts by address using the new accountsAvailable query
+    console.log('📡 Making GraphQL request with accountsAvailable...');
     const result = await apolloClient.query({
-      query: GET_ACCOUNTS_BULK,
+      query: ACCOUNTS_AVAILABLE,
       variables: {
         request: {
-          addresses: [formattedAddress]
+          managedBy: formattedAddress,
+          includeOwned: true
         }
       }
     });
     
     console.log('📊 GraphQL response:', {
       hasData: !!result.data,
-      hasAccountsBulk: !!result.data?.accountsBulk,
-      accountsCount: result.data?.accountsBulk?.length || 0,
+      hasAccountsAvailable: !!result.data?.accountsAvailable,
+      itemsCount: result.data?.accountsAvailable?.items?.length || 0,
       rawResponse: result.data
     });
     
-    const accounts = result.data?.accountsBulk || [];
+    const items = result.data?.accountsAvailable?.items || [];
     
     // If we found accounts, return the first one
-    if (accounts.length > 0) {
-      const account = accounts[0];
-      console.log('✅ Found account:', {
-        address: account.address,
-        username: account.username,
-        metadata: account.metadata
-      });
+    if (items.length > 0) {
+      // Get the first account (prefer owned accounts if available)
+      const ownedAccount = items.find((item: any) => 'account' in item && !('permissions' in item));
+      const managedAccount = items.find((item: any) => 'account' in item && 'permissions' in item);
       
-      // Format the handle properly
-      const handle = account.username?.value 
-        ? {
-            fullHandle: account.username.value,
-            localName: account.username.localName || account.username.value.replace('lens/', '')
-          }
-        : null;
+      const accountItem = ownedAccount || managedAccount || items[0];
+      const account = 'account' in accountItem ? accountItem.account : null;
+      
+      if (account) {
+        console.log('✅ Found account:', {
+          address: account.address,
+          username: account.username,
+          metadata: account.metadata
+        });
+        
+        // Format the handle properly
+        const handle = account.username?.value 
+          ? {
+              fullHandle: account.username.value.replace('lens/', ''),
+              localName: account.username.value.replace('lens/', '')
+            }
+          : null;
 
-      return {
-        id: account.address,
-        handle,
-        metadata: account.metadata || null,
-        address: account.address
-      };
+        return {
+          id: account.address,
+          handle,
+          metadata: account.metadata || null,
+          address: account.address
+        };
+      }
     }
     
     console.log('⚠️ No accounts found for address:', formattedAddress);

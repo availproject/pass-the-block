@@ -34,6 +34,7 @@ interface Web3ContextType {
   lensAccount: LensAccount | null;
   fetchLensAccount: () => Promise<void>;
   fetchingLensAccount: boolean;
+  walletClient: any; // Assuming any type for walletClient
 }
 
 const Web3Context = createContext<Web3ContextType>({
@@ -48,11 +49,14 @@ const Web3Context = createContext<Web3ContextType>({
   lensAccount: null,
   fetchLensAccount: async () => {},
   fetchingLensAccount: false,
+  walletClient: null,
 });
 
 export function useWeb3() {
   return useContext(Web3Context);
 }
+
+
 
 export function Web3Provider({ children }: { children: ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
@@ -61,6 +65,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
   const [isLensAuthenticated, setIsLensAuthenticated] = useState(false);
   const [lensAccount, setLensAccount] = useState<LensAccount | null>(null);
   const [fetchingLensAccount, setFetchingLensAccount] = useState(false);
+  const [walletClient, setWalletClient] = useState<any>(null);
 
   // Connect wallet function
   const connectWallet = async () => {
@@ -212,7 +217,8 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         isLensAuthenticated,
         lensAccount,
         fetchLensAccount: () => fetchLensAccount(),
-        fetchingLensAccount
+        fetchingLensAccount,
+        walletClient,
       }}
     >
       {children}

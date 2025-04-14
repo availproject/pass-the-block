@@ -4,14 +4,14 @@ export async function buildNetwork(
   startingHandle: string,
   getProfileFn: (handle: string) => Promise<RawFollower>,
   getFollowersFn: (address: string) => Promise<RawFollower[]>,
-  maxFollowers = 150
+  maxFollowers = 75
 ): Promise<FollowerNetwork> {
   try {
     const profile = await getProfileFn(startingHandle);
     const startingNode: FollowerNode = {
       id: profile.id,
       name: profile.name,
-      picture: profile.picture || 'default_profile.png',
+      picture: profile.picture || 'default_image.png',
       followers: profile.followers,
       following: profile.following,
       lensScore: profile.lensScore
@@ -22,6 +22,12 @@ export async function buildNetwork(
       links: []
     };
 
+    // Skip follower fetching if the profile has no followers
+    if (profile.followers === 0) {
+      console.log(`Profile ${startingHandle} has no followers, skipping follower fetch.`);
+      return network;
+    }
+
     // Get direct followers
     const followers = await getFollowersFn(profile.address);
 
@@ -30,7 +36,7 @@ export async function buildNetwork(
       network.nodes.push({
         id: follower.id,
         name: follower.name,
-        picture: follower.picture || 'default_profile.png',
+        picture: follower.picture || 'default_image.png',
         followers: follower.followers,
         following: follower.following,
         lensScore: follower.lensScore
