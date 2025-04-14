@@ -450,7 +450,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
     <div id="network-graph" className="w-full h-full">
       <Canvas
         camera={{ 
-          position: [5, 5, 100], // Start much further away for better initial view
+          position: isScreenshot ? [5, 5, 100] : [5, 5, 75], // Start much further away for better initial view
           fov: isScreenshot ? 50 : 60, // Lower FOV for screenshot to reduce distortion
           near: 0.1,
           far: 5000 // Increased far plane for larger networks

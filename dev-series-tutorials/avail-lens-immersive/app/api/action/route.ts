@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import sharp from 'sharp';
+import chromium from "@sparticuz/chromium-min";
+import puppeteerCore from "puppeteer-core";
 import puppeteer from "puppeteer";
 
 export const dynamic = "force-dynamic";
@@ -9,23 +10,34 @@ let browser: any = null;
 async function getBrowser() {
   if (browser) return browser;
 
-  if (process.env.NEXT_PUBLIC_VERCEL_ENVIRONMENT === "production") {
-    browser = await puppeteer.launch({
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--single-process',
-      ],
-      headless: true,
+  const isProd = process.env.NODE_ENV === 'production';
+  console.log('Environment:', process.env.NODE_ENV);
+
+  if (isProd) {
+    // Use chromium-min in production (Vercel)
+    console.log('Using chromium-min in production');
+    browser = await puppeteerCore.launch({
+      args: chromium.args,
+      defaultViewport: {
+        width: 1280,
+        height: 1280,
+      },
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
     });
   } else {
+    // Use regular puppeteer in development
+    console.log('Using regular puppeteer in development');
     browser = await puppeteer.launch({
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      defaultViewport: {
+        width: 1280,
+        height: 1280,
+      },
       headless: true,
     });
   }
+  
   return browser;
 }
 
@@ -56,27 +68,31 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  let currentBrowser = null;
   try {
     const targetUrl = `${appUrl}/screenshot?handle=${lensHandle}`;
     console.log(`Taking screenshot of: ${targetUrl}`);
     
-    const browser = await getBrowser();
-    const page = await browser.newPage();
-    
-    // Set viewport to capture the network graph
-    await page.setViewport({ width: 1280, height: 1280 });
+    currentBrowser = await getBrowser();
+    const page = await currentBrowser.newPage();
     
     // Navigate to the page
-    await page.goto(targetUrl, { waitUntil: 'networkidle2', timeout: 15000 });
+    console.log('Navigating to page...');
+    await page.goto(targetUrl, { 
+      waitUntil: 'networkidle2', 
+      timeout: 15000 
+    });
     
     // Wait for the network graph to be visible
     console.log('Waiting for network graph...');
     await page.waitForSelector('#network-graph canvas', { timeout: 10000 });
     
     // Wait for graph stabilization
+    console.log('Waiting for graph stabilization...');
     await sleep(5000);
     
     // Take screenshot of the network graph container
+    console.log('Taking screenshot...');
     const networkGraphElement = await page.$('#network-graph');
     if (!networkGraphElement) {
       throw new Error('Network graph element not found');
@@ -88,6 +104,7 @@ export async function GET(req: NextRequest) {
     });
     
     console.log('Screenshot taken successfully');
+    await page.close();
     
     // Convert buffer to base64
     const base64Image = Buffer.from(screenshotBuffer).toString('base64');
@@ -110,6 +127,14 @@ export async function GET(req: NextRequest) {
       },
       { status: 500 }
     );
+  } finally {
+    if (currentBrowser) {
+      try {
+        await currentBrowser.close();
+      } catch (error) {
+        console.error('Error closing browser:', error);
+      }
+    }
   }
 }
 
