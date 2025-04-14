@@ -22,6 +22,7 @@ export default function Home() {
   const [initialHandle] = useState<string>('lens/avail_project');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [graphImageUrl, setGraphImageUrl] = useState('');
+  const [socialCardImageUrl, setSocialCardImageUrl] = useState('');
   const [isModalLoading, setIsModalLoading] = useState(false);
   const [error, setError] = useState('');
   const [lastPostId, setLastPostId] = useState<string | null>(null);
@@ -359,35 +360,51 @@ export default function Home() {
     }
   };
 
-  const handleGenerateCard = async () => {
-    setIsModalLoading(true);
-    setError('');
-
+  // Function to handle the social card image capture
+  const handleSocialCardCapture = async (imageUrl: string) => {
+    console.log("Social card captured");
+    
+    // Don't proceed if we already have a social card image URL that's not a data URL
+    // This prevents multiple captures
+    if (socialCardImageUrl && !socialCardImageUrl.startsWith('data:')) {
+      console.log("Social card already captured and saved, skipping duplicate capture");
+      return;
+    }
+    
+    // Set the data URL immediately to prevent duplicate captures during processing
+    setSocialCardImageUrl(imageUrl);
+    
     try {
-      // Clean up the handle: remove 'lens/' prefix if present and .lens suffix if present
-      let cleanHandle = profileHandle.trim()
+      // Save the image to the server
+      const cleanHandle = profileHandle.trim()
         .replace('lens/', '')
         .replace('.lens', '')
-        .toLowerCase(); // Normalize to lowercase
-
+        .toLowerCase();
         
+      const fileName = `${cleanHandle}_social_card.png`;
       
-      const response = await fetch(`/api/action?handle=${cleanHandle}`);
-
+      const response = await fetch('/api/saveImage', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          imageDataUrl: imageUrl,
+          fileName: fileName
+        }),
+      });
+      
       const data = await response.json();
-      console.log(`Data received: ${data.imageUrl}`)
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate');
+      
+      if (response.ok && data.success) {
+        console.log("Social card image saved:", data.imageUrl);
+        // Update the state with the server path to the saved image
+        setSocialCardImageUrl(data.imageUrl);
+      } else {
+        console.error("Failed to save social card image:", data.error);
       }
-
-      setGraphImageUrl(data.imageUrl);
-      setIsModalOpen(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
-      console.error('Error:', err);
-    } finally {
-      setIsModalLoading(false);
+    } catch (error) {
+      console.error("Error saving social card image:", error);
     }
   };
 
@@ -411,10 +428,9 @@ export default function Home() {
     try {
       // First generate the card - this was previously in handleGenerateCard
       console.log("Generating social card...");
-      let imageUrl = graphImageUrl;
       
       // If we don't already have an image URL, generate one
-      if (!imageUrl) {
+      if (!graphImageUrl) {
         // Clean up the handle
         let cleanHandle = profileHandle.trim()
           .replace('lens/', '')
@@ -428,12 +444,22 @@ export default function Home() {
           throw new Error(data.error || 'Failed to generate image');
         }
         
-        imageUrl = data.imageUrl;
-        setGraphImageUrl(imageUrl);
+        setGraphImageUrl(data.imageUrl);
       }
       
-      // Show the modal with the generated image
+      // Show the modal with the generated image - it will trigger the screenshot
       setIsModalOpen(true);
+      
+      // Wait for social card to be captured and saved - maximum 5 seconds
+      let timeout = 0;
+      while (!socialCardImageUrl && timeout < 50) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        timeout++;
+      }
+      
+      if (!socialCardImageUrl) {
+        console.log("Timed out waiting for social card capture, falling back to graph image");
+      }
       
       // Now proceed with the Lens authentication and posting
       console.log("Authenticating with Lens...");
@@ -459,12 +485,23 @@ export default function Home() {
       // Create post content
       const content = `Check out this network visualization for ${profileHandle}! Made with Lens Visualization Tool by Avail Project.`;
       
+      // Use the social card image if available, otherwise fall back to the graph image
+      const imageToPost = socialCardImageUrl || graphImageUrl;
+      
+      // Get the full URL for the image
+      let fullImageUrl = imageToPost;
+      if (!imageToPost.startsWith('data:') && !imageToPost.startsWith('http')) {
+        // If it's a relative path, convert to an absolute URL
+        const origin = window.location.origin;
+        fullImageUrl = `${origin}/${imageToPost}`;
+      }
+      
       // Post to Lens
-      console.log("Posting to Lens...");
+      console.log("Posting to Lens with image:", fullImageUrl);
       const postResult = await postToLens(
         authResult.sessionClient,
         content,
-        imageUrl,
+        fullImageUrl,
         profileHandle
       );
 
@@ -472,9 +509,11 @@ export default function Home() {
         throw new Error('Failed to post to Lens');
       }
 
+      // Close the modal
+      setIsModalOpen(false);
 
       // Construct lens.xyz URL to view the post
-      const lensUrl =  lensAccount?.handle?.localName ? `https://hey.xyz/u/${lensAccount?.handle?.localName}` : 'https://hey.xyz';
+      const lensUrl = lensAccount?.handle?.localName ? `https://hey.xyz/u/${lensAccount?.handle?.localName}` : 'https://hey.xyz';
 
       // Show success toast with view link
       toast((t) => (
@@ -699,6 +738,7 @@ export default function Home() {
               score: selectedNode?.lensScore || 0
             })
           }
+          onCardCapture={handleSocialCardCapture}
         />
         <NetworkGraph
           nodes={networkData.nodes}
