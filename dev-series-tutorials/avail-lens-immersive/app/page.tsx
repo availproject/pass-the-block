@@ -457,7 +457,7 @@ export default function Home() {
       }
 
       // Create post content
-      const content = `Check out this network visualization for ${selectedNode?.label || profileHandle}! Made with Lens Visualization Tool by Avail Project.`;
+      const content = `Check out this network visualization for ${profileHandle}! Made with Lens Visualization Tool by Avail Project.`;
       
       // Post to Lens
       console.log("Posting to Lens...");
@@ -474,7 +474,7 @@ export default function Home() {
 
 
       // Construct lens.xyz URL to view the post
-      const lensUrl =  lensAccount?.handle?.localName ? `https://hey.xyz/${lensAccount?.handle?.localName}` : 'https://hey.xyz';
+      const lensUrl =  lensAccount?.handle?.localName ? `https://hey.xyz/u/${lensAccount?.handle?.localName}` : 'https://hey.xyz';
 
       // Show success toast with view link
       toast((t) => (
@@ -723,7 +723,6 @@ export default function Home() {
         </span>
       </a>
 
-      {renderViewLensButton()}
     </main>
   );
 }

@@ -178,23 +178,37 @@ export async function postToLens(
         console.log("💡 Using public image URL instead of base64:", publicImageUrl);
       }
       
-      // Create a simplified metadata object that matches exactly the Lens example
-      metadata = image({
-        title: "Lens Visualization by Avail Project",
-        image: {
-          item: publicImageUrl,
-          type: MediaImageMimeType.PNG,
-          altTag: "Network visualization from Lens Visualization Tool by Avail Project",
-          license: MetadataLicenseType.CCO,
-        }
-      });
+      // Create metadata that conforms to the Lens schema
+      metadata = {
+        "$schema": "https://json-schemas.lens.dev/posts/image/3.0.0.json",
+        "lens": {
+          "id": crypto.randomUUID(),
+          "locale": "en",
+          "mainContentFocus": "IMAGE",
+          "content": content,
+          "image": {
+            "item": publicImageUrl,
+            "type": MediaImageMimeType.PNG,
+            "altTag": "Network visualization from Lens Visualization Tool by Avail Project",
+          },
+          "tags": ["visualization", "network", "avail"]
+        },
+        "name": "Lens Visualization by Avail Project",
+        "description": content
+      };
       
       console.log("📊 Simplified metadata:", JSON.stringify(metadata, null, 2));
     } else {
       // Simple text-only metadata
-      metadata = textOnly({
-        content: content
-      });
+      metadata = {
+        "$schema": "https://json-schemas.lens.dev/posts/text-only/3.0.0.json",
+        "lens": {
+          "id": crypto.randomUUID(),
+          "content": content,
+          "locale": "en",
+          "mainContentFocus": "TEXT_ONLY"
+        }
+      };
     }
     
     console.log("📊 Created metadata:", JSON.stringify(metadata, null, 2));
