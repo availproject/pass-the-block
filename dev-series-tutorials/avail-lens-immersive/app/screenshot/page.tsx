@@ -22,7 +22,12 @@ export default function ScreenshotPage() {
       // Create a new indicator
       const element = document.createElement('div');
       element.id = 'screenshot-ready-indicator';
-      element.style.display = 'none';
+      element.style.position = 'absolute';
+      element.style.left = '-9999px';
+      element.style.top = '-9999px';
+      element.style.width = '1px';
+      element.style.height = '1px';
+      element.style.overflow = 'hidden';
       document.body.appendChild(element);
       console.log('Ready indicator created, screenshot can be taken now');
     };
