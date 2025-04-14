@@ -13,7 +13,7 @@
     "@heroicons/react": "^2.2.0",
     "@lens-chain/sdk": "^1.0.3",
     "@lens-chain/storage-client": "^1.0.4",
-    "@lens-protocol/client": "^0.0.0-canary-20250402201604",
+    "@lens-protocol/client": "^0.0.0-canary-20250409200234",
     "@lens-protocol/metadata": "^1.2.0",
     "@nextui-org/react": "^2.4.8",
     "@react-three/drei": "^9.122.0",

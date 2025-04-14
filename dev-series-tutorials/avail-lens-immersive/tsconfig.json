@@ -19,7 +19,10 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@lens-protocol/client/actions": ["./node_modules/@lens-protocol/client/dist/actions"],
+      "@lens-protocol/client/ethers": ["./node_modules/@lens-protocol/client/dist/ethers"],
+      "@lens-protocol/client": ["./node_modules/@lens-protocol/client/dist"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "app/types/*.d.ts", "../../../app/api/lens-network/route.ts"],

@@ -160,23 +160,16 @@ export async function postToLens(
     let metadata;
     
     if (imageUrl) {
-      console.log("🖼️ Including image in post:", imageUrl.substring(0, 50) + "...");
       
-      // Convert the base64 imageUrl to a public URL
-      let publicImageUrl = imageUrl;
+      // Use the lens handle provided directly, or fallback to extracting from content
+      const useLensHandle = lensHandle || content.match(/for\s+(lens\/\w+|@\w+)/i)?.[1]?.replace('@', '') || 'availproject';
+      const cleanHandle = useLensHandle.replace('lens/', '');
       
-      // If the imageUrl is a data URL, extract the handle and construct a public URL
-      if (imageUrl.startsWith('data:image')) {
-        // Use the lens handle provided directly, or fallback to extracting from content
-        const useLensHandle = lensHandle || content.match(/for\s+(lens\/\w+|@\w+)/i)?.[1]?.replace('@', '') || 'availproject';
-        const cleanHandle = useLensHandle.replace('lens/', '');
-        
-        // Construct the public URL using the app's base URL
-        const baseUrl = 'https://lenscollective.me';
-        publicImageUrl = `${baseUrl}/images/${cleanHandle}_network_graph.png`;
-        
-        console.log("💡 Using public image URL instead of base64:", publicImageUrl);
-      }
+      // Construct the public URL using the app's base URL
+      const baseUrl = 'https://lenscollective.me';
+      let publicImageUrl = `${baseUrl}/images/${cleanHandle}_se_social_card.png`;
+      
+      console.log("💡 Using public image URL instead of base64:", publicImageUrl);
       
       // Create metadata that conforms to the Lens schema
       metadata = {
