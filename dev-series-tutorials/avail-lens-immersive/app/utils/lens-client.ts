@@ -1,7 +1,5 @@
 import { ApolloClient, InMemoryCache, gql } from '@apollo/client';
 import { RawFollower } from '../types/network';
-import { evmAddress, PublicClient, mainnet  } from '@lens-protocol/client';
-import { fetchAccountsAvailable, follow } from '@lens-protocol/client/actions';
 
 // Initialize Apollo Client
 const apolloClient = new ApolloClient({
@@ -185,12 +183,6 @@ const ACCOUNTS_AVAILABLE = gql`
   }
 `;
 
-// New public client for modern Lens API interactions
-export const publicClient = PublicClient.create({
-  environment: mainnet,
-  origin: typeof window !== 'undefined' ? window.location.origin : 'lenscollective.me',
-});
-
 interface FollowerItem {
   follower: {
     address: string;
@@ -300,7 +292,13 @@ export async function getFollowerDetails(accountAddress: string, limit: number =
       query AccountFollowerCount($request: FollowersRequest!) {
         followers(request: $request) {
           pageInfo {
-            totalCount
+            prev
+            next
+          }
+          items {
+            follower {
+              address
+            }
           }
         }
       }
@@ -315,11 +313,12 @@ export async function getFollowerDetails(accountAddress: string, limit: number =
       }
     });
     
-    const followerCount = statsResult.data?.followers?.pageInfo?.totalCount || 0;
-    console.log(`Account has ${followerCount} followers`);
+    // Check if there are any followers by looking at the items array
+    const hasFollowers = statsResult.data?.followers?.items?.length > 0;
+    console.log(`Account has followers: ${hasFollowers}`);
     
     // If there are no followers, return an empty array immediately
-    if (followerCount === 0) {
+    if (!hasFollowers) {
       console.log('Account has no followers, returning empty array');
       return [];
     }
