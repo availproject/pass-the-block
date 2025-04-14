@@ -3,12 +3,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import puppeteer from 'puppeteer';
 import sharp from 'sharp';
-import fs from 'fs';
-import { mkdir } from 'fs/promises';
-import path from 'path';
 
 export async function GET(req: NextRequest) {
-console.log("Requesting Screenshot")
+  console.log("Requesting Screenshot")
   const { searchParams } = new URL(req.url);
   const lensHandle = searchParams.get('handle');
 
@@ -33,80 +30,83 @@ console.log("Requesting Screenshot")
 
   // Create a timeout promise with longer timeout
   const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error('Request timed out')), 20000); // 20 second timeout (reduced from 30s)
+    setTimeout(() => reject(new Error('Request timed out')), 20000); // 20 second timeout
   });
 
   try {
-      console.log("Taking Screenshot...")  
-      
-      // Race between the screenshot and the timeout
-      await Promise.race([
-        takeScreenshot(lensHandle),
-        timeoutPromise
-      ]);
-     
-       // 2. Verify the image exists
-      const imagePath = `images/${lensHandle}_network_graph.png`;
-      const fullPath = path.join(process.cwd(), 'public', imagePath);
-
-      if (!fs.existsSync(fullPath)) {
-        // If the image doesn't exist, try to take a fallback screenshot
-        console.log("Image not found, trying fallback screenshot...");
-        await takeFallbackScreenshot(lensHandle);
-        
-        // Check again if the image exists
-        if (!fs.existsSync(fullPath)) {
-          return NextResponse.json(
-            { error: 'Graph image not found' },
-            { status: 404 }
-          );
-        }
-      }
-
-      // Read image and convert to base64
-      const fileBuffer = fs.readFileSync(fullPath);
-      const base64Image = fileBuffer.toString('base64');
-      const dataUrl = `data:image/png;base64,${base64Image}`;
-
-
-        return NextResponse.json({
-          success: true,
-          imageUrl: dataUrl,
-          timestamp: new Date().toISOString()
-        });
+    console.log("Taking Screenshot...")  
     
+    // Race between the screenshot and the timeout
+    const imageBuffer = await Promise.race([
+      takeScreenshot(lensHandle),
+      timeoutPromise
+    ]) as Buffer;
+    
+    if (!imageBuffer || imageBuffer.length === 0) {
+      console.log("No image generated, trying fallback...");
+      const fallbackBuffer = await takeFallbackScreenshot(lensHandle);
+      
+      if (!fallbackBuffer || fallbackBuffer.length === 0) {
+        return NextResponse.json(
+          { error: 'Failed to generate graph image' },
+          { status: 500 }
+        );
+      }
+      
+      // Convert fallback buffer to base64
+      const base64Image = fallbackBuffer.toString('base64');
+      const dataUrl = `data:image/png;base64,${base64Image}`;
+      
+      return NextResponse.json({
+        success: true,
+        imageUrl: dataUrl,
+        timestamp: new Date().toISOString(),
+        note: "Used fallback screenshot method"
+      });
+    }
+    
+    // Convert buffer to base64
+    const base64Image = imageBuffer.toString('base64');
+    const dataUrl = `data:image/png;base64,${base64Image}`;
 
+    return NextResponse.json({
+      success: true,
+      imageUrl: dataUrl,
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
-      console.error('Error taking screenshot:', error);
+    console.error('Error taking screenshot:', error);
+    
+    // Try fallback one more time
+    try {
+      console.log("Error occurred, trying fallback screenshot...");
+      const fallbackBuffer = await takeFallbackScreenshot(lensHandle);
       
-      // Even if the screenshot process timed out, check if the image was created anyway
-      const imagePath = `images/${lensHandle}_network_graph.png`;
-      const fullPath = path.join(process.cwd(), 'public', imagePath);
-      
-      if (fs.existsSync(fullPath)) {
-        console.log("Despite error, image file exists. Returning it.");
-        const fileBuffer = fs.readFileSync(fullPath);
-        const base64Image = fileBuffer.toString('base64');
+      if (fallbackBuffer && fallbackBuffer.length > 0) {
+        const base64Image = fallbackBuffer.toString('base64');
         const dataUrl = `data:image/png;base64,${base64Image}`;
         
         return NextResponse.json({
           success: true,
           imageUrl: dataUrl,
           timestamp: new Date().toISOString(),
-          note: "Image generated despite timeout"
+          note: "Used fallback after error"
         });
       }
-      
-      // Include full error details in the response
-      return NextResponse.json({ 
-        error: error instanceof Error ? error.message : 'Failed to capture screenshot',
-        stack: error instanceof Error ? error.stack : undefined,
-        message: 'The screenshot process took too long or encountered an error. Please try again.'
-      }, { status: 500 });
+    } catch (fallbackError) {
+      console.error('Fallback screenshot also failed:', fallbackError);
+    }
+    
+    // Include full error details in the response
+    return NextResponse.json({ 
+      error: error instanceof Error ? error.message : 'Failed to capture screenshot',
+      stack: error instanceof Error ? error.stack : undefined,
+      message: 'The screenshot process took too long or encountered an error. Please try again.'
+    }, { status: 500 });
   }
 }
 
-async function takeScreenshot(lensHandle :string) {
+async function takeScreenshot(lensHandle: string): Promise<Buffer> {
     // Log the environment variables and URL construction
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const targetUrl = `${baseUrl}/screenshot?handle=${lensHandle}`;
@@ -117,85 +117,70 @@ async function takeScreenshot(lensHandle :string) {
         lensHandle: lensHandle
     });
 
+    let browser;
     try {
         console.log(`Launching puppeteer browser...`);
-        const browser = await puppeteer.launch({
+        browser = await puppeteer.launch({
             headless: true,
-            defaultViewport: { width: 1920, height: 1080 }
+            defaultViewport: { width: 1280, height: 1280 } // Square viewport for better capture
         });
         
         console.log(`Browser launched, creating new page...`);
         const page = await browser.newPage();
         
-        try {
-            // Navigate directly to the screenshot page with the handle
-            console.log(`Navigating to URL: ${targetUrl}`);
-            await page.goto(targetUrl, { 
-                waitUntil: 'networkidle2',
-                timeout: 15000 // Increased timeout for initial page load
-            });
-            
-            // First check for the ready indicator
-            console.log(`Waiting for screenshot-ready-indicator...`);
-            await page.waitForSelector('#screenshot-ready-indicator', { 
-                timeout: 5000
-            }).catch(err => {
-                console.log('Ready indicator not found, continuing anyway');
-            });
-            
-            // Wait for the network graph to be visible
-            const networkGraphSelector = '#network-graph canvas';
-            console.log(`Waiting for selector: ${networkGraphSelector}`);
-            await page.waitForSelector(networkGraphSelector, { timeout: 10000 });
-            console.log('Network graph canvas element found.');
-            
-            // Wait for the graph to stabilize
-            await sleep(3000);
-            console.log('Done waiting for graph stabilization');
-            
-            // Create public/images directory if it doesn't exist
-            await mkdir('./public/images', { recursive: true });
-            
-            // Take full screenshot
-            console.log('Taking full screenshot...');
-            await page.screenshot({ path: `./public/images/${lensHandle}_full.png` });
-            
-            // Get the network graph element and its dimensions
-            console.log('Cropping screenshot...');
-            const clip = await page.$eval('#network-graph', el => {
-                const { x, y, width, height } = el.getBoundingClientRect();
-                const size = Math.min(width, height) * 0.8;
-                const left = x + (width - size) / 2;
-                const top = y + 100;
-                return {
-                    left: Math.floor(left),
-                    top: Math.floor(top),
-                    width: Math.floor(size),
-                    height: Math.floor(size)
-                };
-            });
-            
-            // Crop and save the network graph
-            await sharp(`./public/images/${lensHandle}_full.png`)
-                .extract(clip)
-                .toFile(`./public/images/${lensHandle}_network_graph.png`);
-            
-            console.log(`Graph stored to ./public/images/${lensHandle}_network_graph.png`);
-            
-            await browser.close();
-        } catch (error) {
-            console.error('Error during screenshot process:', error);
-            await browser.close();
-            throw error;
+        // Navigate directly to the screenshot page with the handle
+        console.log(`Navigating to URL: ${targetUrl}`);
+        await page.goto(targetUrl, { 
+            waitUntil: 'networkidle2',
+            timeout: 15000 // Increased timeout for initial page load
+        });
+        
+        // First check for the ready indicator
+        console.log(`Waiting for screenshot-ready-indicator...`);
+        await page.waitForSelector('#screenshot-ready-indicator', { 
+            timeout: 5000
+        }).catch(err => {
+            console.log('Ready indicator not found, continuing anyway');
+        });
+        
+        // Wait for the network graph to be visible
+        const networkGraphSelector = '#network-graph canvas';
+        console.log(`Waiting for selector: ${networkGraphSelector}`);
+        await page.waitForSelector(networkGraphSelector, { timeout: 10000 });
+        console.log('Network graph canvas element found.');
+        
+        // Wait for the graph to stabilize
+        await sleep(5000); // Extended stabilization time for full view
+        console.log('Done waiting for graph stabilization');
+        
+        // Take screenshot of the network graph div (which contains the canvas)
+        console.log('Taking screenshot of the network graph...');
+        
+        // Get the network graph container
+        const networkGraphElement = await page.$('#network-graph');
+        if (!networkGraphElement) {
+            throw new Error('Network graph element not found');
         }
+        
+        // Take screenshot of the network graph container
+        const screenshotBuffer = await networkGraphElement.screenshot({
+            type: 'png',
+            omitBackground: false
+        });
+        
+        console.log(`Network graph screenshot taken successfully`);
+        
+        await browser.close();
+        return Buffer.from(screenshotBuffer);
     } catch (error) {
         console.error('Error during screenshot process:', error);
+        if (browser) await browser.close();
         throw error;
     }
 }
 
 // Fallback screenshot function that takes a simpler approach
-async function takeFallbackScreenshot(lensHandle: string) {
+async function takeFallbackScreenshot(lensHandle: string): Promise<Buffer> {
   // Log the environment variables and URL construction for fallback
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   console.log('Fallback screenshot - Environment variables:', {
@@ -209,7 +194,7 @@ async function takeFallbackScreenshot(lensHandle: string) {
     console.log(`Launching fallback puppeteer browser...`);
     browser = await puppeteer.launch({
       headless: true,
-      defaultViewport: { width: 1920, height: 1080 }
+      defaultViewport: { width: 1280, height: 1280 } // Square viewport for better capture
     });
     
     console.log(`Fallback browser launched, creating new page...`);
@@ -218,44 +203,37 @@ async function takeFallbackScreenshot(lensHandle: string) {
     console.log(`Navigating to fallback URL: ${baseUrl}`);
     await page.goto(baseUrl, { waitUntil: 'networkidle2' });
     
-    // Wait for the graph to be visible
+    // Wait for the graph container to be visible
     console.log(`Waiting for fallback selector: #network-graph`);
     await page.waitForSelector('#network-graph', { timeout: 5000 });
-    console.log('Fallback graph found');
+    console.log('Fallback graph container found');
     
-    // Create public/images directory if it doesn't exist
-    await mkdir('./public/images', { recursive: true });
+    // Wait for the canvas to be visible
+    await page.waitForSelector('#network-graph canvas', { timeout: 5000 });
+    console.log('Fallback canvas found');
     
-    // Take a screenshot of the entire page
+    // Wait for a moment to let the graph render properly
+    await sleep(5000);
+    
+    // Take screenshot of the network graph container
     console.log(`Taking fallback screenshot...`);
-    await page.screenshot({ path: `./public/images/${lensHandle}_full.png` });
+    const networkGraphElement = await page.$('#network-graph');
+    if (!networkGraphElement) {
+        throw new Error('Network graph element not found in fallback');
+    }
     
-    // Crop the image to focus on the graph
-    console.log(`Cropping fallback screenshot...`);
-    const clip = await page.$eval('#network-graph', el => {
-      const { x, y, width, height } = el.getBoundingClientRect();
-      const size = Math.min(width, height) * 0.8;
-      const left = x + (width - size) / 2;
-      const top = y + 100;
-      return {
-        left: Math.floor(left),
-        top: Math.floor(top),
-        width: Math.floor(size),
-        height: Math.floor(size)
-      };
+    const screenshotBuffer = await networkGraphElement.screenshot({
+        type: 'png',
+        omitBackground: false
     });
     
-    await sharp(`./public/images/${lensHandle}_full.png`)
-      .extract(clip)
-      .toFile(`./public/images/${lensHandle}_network_graph.png`);
-    
-    console.log(`Fallback graph stored to ./public/images/${lensHandle}_network_graph.png`);
+    console.log(`Fallback screenshot taken successfully`);
+    await browser.close();
+    return Buffer.from(screenshotBuffer);
   } catch (error) {
     console.error('Error taking fallback screenshot:', error);
-  } finally {
-    if (browser) {
-      await browser.close();
-    }
+    if (browser) await browser.close();
+    throw error;
   }
 }
 

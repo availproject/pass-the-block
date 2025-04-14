@@ -8,13 +8,24 @@ export default function ScreenshotPage() {
   const [networkData, setNetworkData] = useState({ nodes: [], links: [] });
   const [targetHandle, setTargetHandle] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isReadyForCapture, setIsReadyForCapture] = useState(false);
 
   useEffect(() => {
-    // Signal when the component is mounted (for puppeteer to detect)
-    const element = document.createElement('div');
-    element.id = 'screenshot-ready-indicator';
-    element.style.display = 'none';
-    document.body.appendChild(element);
+    // Create a signal element only after everything is ready
+    const createReadyIndicator = () => {
+      // First remove any existing indicator
+      const existingIndicator = document.getElementById('screenshot-ready-indicator');
+      if (existingIndicator && existingIndicator.parentNode) {
+        existingIndicator.parentNode.removeChild(existingIndicator);
+      }
+      
+      // Create a new indicator
+      const element = document.createElement('div');
+      element.id = 'screenshot-ready-indicator';
+      element.style.display = 'none';
+      document.body.appendChild(element);
+      console.log('Ready indicator created, screenshot can be taken now');
+    };
 
     const loadNetwork = async () => {
       // Get the handle from the URL search params
@@ -49,17 +60,27 @@ export default function ScreenshotPage() {
         const targetLabel = processedData.nodes[0]?.label || null;
         console.log('Setting target handle to:', targetLabel);
         setTargetHandle(targetLabel);
+        
+        // First set loading to false to trigger component update
+        setIsLoading(false);
+        
+        // Then wait for a moment to allow graph to render and position
+        setTimeout(() => {
+          setIsReadyForCapture(true);
+          // Add the ready indicator after everything is rendered and positioned
+          setTimeout(createReadyIndicator, 500);
+        }, 2000);
       } catch (error) {
         console.error('Error loading network:', error);
-      } finally {
         setIsLoading(false);
       }
     };
 
     loadNetwork();
     
-    // Clean up the indicator element on unmount
+    // Clean up function
     return () => {
+      const element = document.getElementById('screenshot-ready-indicator');
       if (element && element.parentNode) {
         element.parentNode.removeChild(element);
       }
@@ -86,6 +107,8 @@ export default function ScreenshotPage() {
           currentNetwork=""
           onNetworkSwitch={() => {}}
           isScreenshot={true}
+          screenshotMode={true}
+          hideUI={true}
         />
       </div>
     </main>

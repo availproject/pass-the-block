@@ -144,6 +144,7 @@ export async function postToLens(
   try {
     console.log("🚀 Starting post to Lens process");
     console.log("📝 Content:", content);
+    console.log("🖼️ Image URL:", imageUrl);
     
     // Log sessionClient details (safely)
     console.log("👤 Session client available:", !!sessionClient);
@@ -160,16 +161,44 @@ export async function postToLens(
     let metadata;
     
     if (imageUrl) {
-      
       // Use the lens handle provided directly, or fallback to extracting from content
       const useLensHandle = lensHandle || content.match(/for\s+(lens\/\w+|@\w+)/i)?.[1]?.replace('@', '') || 'availproject';
       const cleanHandle = useLensHandle.replace('lens/', '');
       
-      // Construct the public URL using the app's base URL
-      const baseUrl = 'https://lenscollective.me';
-      let publicImageUrl = `${baseUrl}/images/${cleanHandle}_se_social_card.png`;
+      // Determine the image URL to use
+      let publicImageUrl = imageUrl;
       
-      console.log("💡 Using public image URL instead of base64:", publicImageUrl);
+      // If the image URL is already a Grove URL or other http(s) URL, use it directly
+      if (!publicImageUrl.startsWith('http') && !publicImageUrl.startsWith('data:')) {
+        // Construct the public URL using the app's base URL for relative paths
+        const baseUrl = 'https://lenscollective.me';
+        publicImageUrl = `${baseUrl}/${publicImageUrl}`;
+      }
+      
+      console.log("💡 Using image URL:", publicImageUrl);
+      
+      // For data URLs, we need to upload them to Grove first
+      if (publicImageUrl.startsWith('data:')) {
+        try {
+          console.log("📤 Converting data URL to Grove Storage URL...");
+          
+          // Extract base64 data and create a File for Grove
+          const base64Data = publicImageUrl.replace(/^data:image\/\w+;base64,/, '');
+          const buffer = Buffer.from(base64Data, 'base64');
+          const file = new File([buffer], `${cleanHandle}_social_card.png`, { type: 'image/png' });
+          
+          // Upload directly to Grove
+          const storageClient = StorageClient.create();
+          const result = await storageClient.uploadFile(file);
+          const { gatewayUrl } = result;
+          
+          console.log("🔗 Image uploaded to Grove:", gatewayUrl);
+          publicImageUrl = gatewayUrl;
+        } catch (uploadError) {
+          console.error("⚠️ Failed to upload image data URL to Grove:", uploadError);
+          // Continue with the data URL as fallback
+        }
+      }
       
       // Create metadata that conforms to the Lens schema
       metadata = {

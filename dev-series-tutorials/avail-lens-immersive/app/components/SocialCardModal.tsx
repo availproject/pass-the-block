@@ -194,19 +194,29 @@ export default function SocialCardModal({
             </div>
 
             {/* Graph Section */}
-            <div className="flex-1 bg-[#1E2129] flex items-center justify-center p-8 md:h-full">
+            <div className="flex-1 bg-[#1E2129] flex items-center justify-center p-4 md:h-full overflow-hidden">
               {graphImageUrl ? (
-                <img 
-                  src={graphImageUrl.startsWith('data:') ? graphImageUrl : `/images/${graphImageUrl}`} 
-                  alt="Social Graph" 
-                  className="w-full h-auto object-contain rounded-lg max-h-[400px]"
-                  style={{ maxWidth: "100%" }}
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/default_image.png';
-                  }}
-                />
+                <div className="relative w-full h-full flex items-center justify-center rounded-xl bg-black">
+                  <img 
+                    src={graphImageUrl.startsWith('data:') ? graphImageUrl : `/images/${graphImageUrl}`} 
+                    alt="Social Graph" 
+                    className="max-w-full max-h-full object-contain"
+                    style={{ 
+                      background: 'transparent',
+                      boxShadow: '0 0 20px rgba(0, 0, 0, 0.3)'
+                    }}
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = '/default_image.png';
+                    }}
+                  />
+                  <div className="absolute bottom-2 right-2 text-xs text-[#8A8F9D] bg-[#2A2E38]/80 px-2 py-1 rounded-md">
+                    Powered by Avail
+                  </div>
+                </div>
               ) : (
-                <div className="text-[#8A8F9D] text-xl">Loading visualization...</div>
+                <div className="w-full h-full flex items-center justify-center">
+                  <div className="text-[#8A8F9D] text-xl animate-pulse">Loading visualization...</div>
+                </div>
               )}
             </div>
           </div>

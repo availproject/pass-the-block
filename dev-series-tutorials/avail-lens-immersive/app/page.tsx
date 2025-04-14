@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import NetworkGraph from './components/NetworkGraph';
+import NetworkCapture from './components/NetworkCapture';
 import Dashboard from './components/Dashboard';
 import SocialCardModal from './components/SocialCardModal';
 import { Card, CardBody, Button, Input, Image } from '@nextui-org/react';
@@ -11,6 +12,7 @@ import MultiSelectInput from './components/MultiSelectInput';
 import { useWeb3 } from './components/Providers';
 import { authenticateForPosting, postToLens } from './utils/lens-auth';
 import toast, { Toaster } from 'react-hot-toast';
+import { uploadImageToGrove } from './utils/grove-storage';
 
 
 export default function Home() {
@@ -341,75 +343,8 @@ export default function Home() {
     }
   };
 
-  const handleTakeScreenshot = async () => {
-    setIsScreenshotLoading(true);
-    try {
-      // Clean up the handle: remove 'lens/' prefix if present and .lens suffix if present
-      let cleanHandle = profileHandle.trim()
-        .replace('lens/', '')
-        .replace('.lens', '')
-        .toLowerCase(); // Normalize to lowercase
-      
-      const response = await fetch(`/api/action?handle=${cleanHandle}`);
-      if (!response.ok) throw new Error('Failed to capture screenshot');
-    } catch (error) {
-      console.error('Error taking screenshot:', error);
-      alert('Something went wrong!');
-    } finally {
-      setIsScreenshotLoading(false);
-    }
-  };
-
   // Function to handle the social card image capture
   const handleSocialCardCapture = async (imageUrl: string) => {
-    console.log("Social card captured");
-    
-    // Don't proceed if we already have a social card image URL that's not a data URL
-    // This prevents multiple captures
-    if (socialCardImageUrl && !socialCardImageUrl.startsWith('data:')) {
-      console.log("Social card already captured and saved, skipping duplicate capture");
-      return;
-    }
-    
-    // Set the data URL immediately to prevent duplicate captures during processing
-    setSocialCardImageUrl(imageUrl);
-    
-    try {
-      // Save the image to the server
-      const cleanHandle = profileHandle.trim()
-        .replace('lens/', '')
-        .replace('.lens', '')
-        .toLowerCase();
-        
-      const fileName = `${cleanHandle}_social_card.png`;
-      
-      const response = await fetch('/api/saveImage', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          imageDataUrl: imageUrl,
-          fileName: fileName
-        }),
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok && data.success) {
-        console.log("Social card image saved:", data.imageUrl);
-        // Update the state with the server path to the saved image
-        setSocialCardImageUrl(data.imageUrl);
-      } else {
-        console.error("Failed to save social card image:", data.error);
-      }
-    } catch (error) {
-      console.error("Error saving social card image:", error);
-    }
-  };
-
-  // Function to handle posting to Lens
-  const handlePostToLens = async () => {
     if (!connected || !lensAccount || !address) {
       toast.error('Please connect your wallet and ensure you have a Lens account', {
         icon: '🔒',
@@ -422,45 +357,39 @@ export default function Home() {
       return;
     }
 
-    setIsModalLoading(true);
-    setError('');
-
+    console.log("Social card captured");
+    
+    // Don't proceed if we already have a social card image URL that's not a data URL
+    // and is a Grove URL (starts with https://api.grove.storage)
+    if (socialCardImageUrl && 
+        !socialCardImageUrl.startsWith('data:') && 
+        socialCardImageUrl.includes('api.grove.storage')) {
+      console.log("Social card already captured and saved to Grove, skipping duplicate capture");
+      return;
+    }
+    
+    // Set the data URL immediately to prevent duplicate captures during processing
+    setSocialCardImageUrl(imageUrl);
+    
     try {
-      // First generate the card - this was previously in handleGenerateCard
-      console.log("Generating social card...");
-      
-      // If we don't already have an image URL, generate one
-      if (!graphImageUrl) {
-        // Clean up the handle
-        let cleanHandle = profileHandle.trim()
-          .replace('lens/', '')
-          .replace('.lens', '')
-          .toLowerCase();
+      // Upload the image directly to Grove Storage
+      const cleanHandle = profileHandle.trim()
+        .replace('lens/', '')
+        .replace('.lens', '')
+        .toLowerCase();
         
-        const response = await fetch(`/api/action?handle=${cleanHandle}`);
-        const data = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to generate image');
-        }
-        
-        setGraphImageUrl(data.imageUrl);
-      }
+      const fileName = `${cleanHandle}_social_card.png`;
       
-      // Show the modal with the generated image - it will trigger the screenshot
-      setIsModalOpen(true);
+      // Get the lens account address from the connected wallet if available
+      const lensAccountAddress = lensAccount?.id || undefined;
       
-      // Wait for social card to be captured and saved - maximum 5 seconds
-      let timeout = 0;
-      while (!socialCardImageUrl && timeout < 50) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        timeout++;
-      }
+      // Upload to Grove directly from the client
+      const result = await uploadImageToGrove(imageUrl, fileName, lensAccountAddress);
       
-      if (!socialCardImageUrl) {
-        console.log("Timed out waiting for social card capture, falling back to graph image");
-      }
-      
+      console.log("Social card image saved to Grove:", result.gatewayUrl);
+      // Update the state with the Grove gateway URL to the saved image
+      setSocialCardImageUrl(result.gatewayUrl);
+
       // Now proceed with the Lens authentication and posting
       console.log("Authenticating with Lens...");
       
@@ -483,26 +412,17 @@ export default function Home() {
       }
 
       // Create post content
-      const content = `Check out this network visualization for ${profileHandle}! Made with Lens Visualization Tool by Avail Project.`;
+      const content = `Check out this network visualization for ${selectedNode?.label}! Made with Lens Visualization Tool by Avail Project.`;
       
-      // Use the social card image if available, otherwise fall back to the graph image
-      const imageToPost = socialCardImageUrl || graphImageUrl;
-      
-      // Get the full URL for the image
-      let fullImageUrl = imageToPost;
-      if (!imageToPost.startsWith('data:') && !imageToPost.startsWith('http')) {
-        // If it's a relative path, convert to an absolute URL
-        const origin = window.location.origin;
-        fullImageUrl = `${origin}/${imageToPost}`;
-      }
+      const imageToPost = result.gatewayUrl;
       
       // Post to Lens
-      console.log("Posting to Lens with image:", fullImageUrl);
+      console.log("Posting to Lens with image:", imageToPost);
       const postResult = await postToLens(
         authResult.sessionClient,
         content,
-        fullImageUrl,
-        profileHandle
+        imageToPost,
+        selectedNode?.label || 'availproject'
       );
 
       if (!postResult.success) {
@@ -539,9 +459,59 @@ export default function Home() {
           minWidth: '250px',
         },
       });
+
+
+    } catch (error) {
+      console.error("Error saving social card image to Grove:", error);
+      // Keep the data URL as fallback
+    }
+  };
+
+  // Function to handle posting to Lens
+  const handlePostToLens = async () => {
+    if (!connected || !lensAccount || !address) {
+      toast.error('Please connect your wallet and ensure you have a Lens account', {
+        icon: '🔒',
+        style: {
+          borderRadius: '10px',
+          background: '#333',
+          color: '#fff',
+        },
+      });
+      return;
+    }
+
+    setIsModalLoading(true);
+    setError('');
+
+    try {
+      // NOTE: We are using the API directly since direct canvas capture doesn't work in the deployment environment.
+      // This approach avoids having to use the filesystem which is read-only in Vercel.
+      const cleanHandle = selectedNode?.label || 'availproject';
+      
+      console.log("Using API to generate network graph for:", cleanHandle);
+      const response = await fetch(`/api/action?handle=${cleanHandle}`);
+      
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to generate image');
+      }
+      
+      const data = await response.json();
+      setGraphImageUrl(data.imageUrl);
+      
+      // Show the social card modal with the generated graph
+      console.log("Generating social card with captured network graph...");
+      
+      // Show the modal with the generated image - it will trigger the screenshot
+      setIsModalOpen(true);
+      
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
       console.error('Error posting to Lens:', err);
+      
+      // Close modal if there was an error
+      setIsModalOpen(false);
       
       // Show error toast instead of alert
       toast.error(`Error posting to Lens: ${err instanceof Error ? err.message : 'Unknown error'}`, {
@@ -721,7 +691,6 @@ export default function Home() {
           </Card>
         </div>
         
-
       {/* Full screen visualization */}
       <div className="w-full h-full">
         <SocialCardModal

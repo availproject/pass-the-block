@@ -33,6 +33,8 @@ interface NetworkGraphProps {
   currentNetwork?: string;
   onNetworkSwitch?: (network: string) => void;
   isScreenshot?: boolean;
+  screenshotMode?: boolean;
+  hideUI?: boolean;
 }
 
 // Camera animation component
@@ -83,7 +85,7 @@ const CameraAnimation = ({
       // Use different offsets based on whether it's a double-click, screenshot, or search
       let offset;
       if (isScreenshot) {
-        offset = new THREE.Vector3(0, 0, 80); // Fixed offset for screenshot
+        offset = new THREE.Vector3(0, 0, 100); // Even larger offset for screenshot to show full network
       } else if (isDoubleClick) {
         offset = new THREE.Vector3(0, 0, 20); // Front view for double-click
       } else {
@@ -186,10 +188,12 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
   networks = [],
   currentNetwork = '',
   onNetworkSwitch,
-  isScreenshot = false
+  isScreenshot = false,
+  screenshotMode = false,
+  hideUI = false
 }) => {
   // Find the target node's ID
-  const targetNodeId = nodes.find(node => 
+  const initialTargetNodeId = nodes.find(node => 
     targetHandle ? 
       node.label.toLowerCase() === targetHandle.toLowerCase() :
       null
@@ -205,7 +209,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
   // Find all directly connected node IDs to the target handle
   const connectedNodeIds = new Set(
     links
-      .filter(edge => edge.source === targetNodeId || edge.target === targetNodeId)
+      .filter(edge => edge.source === initialTargetNodeId || edge.target === initialTargetNodeId)
       .flatMap(edge => [edge.source, edge.target])
   );
 
@@ -398,37 +402,6 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
       controlsRef.current.update();
     }
   };
-  
-  const panCamera = (x: number, y: number) => {
-    if (controlsRef.current) {
-      // Get the camera and calculate the proper pan direction vectors based on camera orientation
-      const camera = controlsRef.current.object;
-      
-      // Calculate pan speed based on camera distance
-      const distance = camera.position.distanceTo(controlsRef.current.target);
-      const panSpeed = distance / 100; // Adjust sensitivity
-      
-      // Right vector (for x movement)
-      const right = new THREE.Vector3();
-      right.setFromMatrixColumn(camera.matrix, 0);
-      right.normalize();
-      
-      // Up vector (for y movement)
-      const up = new THREE.Vector3(0, 1, 0);
-      
-      // Move in the right direction for x
-      const moveX = right.multiplyScalar(x * panSpeed);
-      // Move in the up direction for y
-      const moveY = up.multiplyScalar(y * panSpeed);
-      
-      // Apply the movement to both camera and target
-      camera.position.add(moveX).add(moveY);
-      controlsRef.current.target.add(moveX).add(moveY);
-      
-      // Update the controls
-      controlsRef.current.update();
-    }
-  };
 
   // Listen for camera control events from Dashboard
   useEffect(() => {
@@ -466,14 +439,21 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
     };
   }, []);
 
+  // Special handling for screenshot mode
+  const [screenshotPosition, setScreenshotPosition] = useState<[number, number, number] | null>(null);
+  const [screenshotNodeId, setScreenshotNodeId] = useState<string | null>(null);
+  const [isDoubleClick, setIsDoubleClick] = useState(false);
+  const [isAutoRotate, setIsAutoRotate] = useState(true);
+  const [ensureRender, setEnsureRender] = useState(false);
+
   return (
     <div id="network-graph" className="w-full h-full">
       <Canvas
         camera={{ 
-          position: [5, 5, 80],
-          fov: isScreenshot ? 45 : 60,
+          position: [5, 5, 100], // Start much further away for better initial view
+          fov: isScreenshot ? 50 : 60, // Lower FOV for screenshot to reduce distortion
           near: 0.1,
-          far: 3000
+          far: 5000 // Increased far plane for larger networks
         }}
         style={{ background: '#000', display: 'block', width: '100%', height: '100%' }}
         shadows
@@ -494,14 +474,25 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
           intensity={0.3}
         />
 
-        {/* Camera animation controller */}
+        {/* Camera animation for regular view */}
         {targetHandle && (
           <CameraAnimation 
             targetPosition={spacedNodes.find(n => n.label.toLowerCase() === targetHandle.toLowerCase())?.position || [5, 5, 55]}
             targetHandle={targetHandle}
             isDoubleClick={isFromDoubleClick}
             onAnimationComplete={handleAnimationComplete}
-            isScreenshot={isScreenshot}
+            isScreenshot={false}
+          />
+        )}
+
+        {/* Camera animation for screenshot mode */}
+        {isScreenshot && screenshotNodeId && screenshotPosition && (
+          <CameraAnimation
+            targetPosition={screenshotPosition}
+            targetHandle={screenshotNodeId}
+            isDoubleClick={false}
+            onAnimationComplete={() => {}}
+            isScreenshot={true}
           />
         )}
 
@@ -513,7 +504,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
           if (!sourceNode || !targetNode) return null;
           
           // Set edge opacity based on whether it connects to target node
-          const isConnectedToTarget = edge.source === targetNodeId || edge.target === targetNodeId;
+          const isConnectedToTarget = edge.source === initialTargetNodeId || edge.target === initialTargetNodeId;
           
           return (
             <EdgeLine
@@ -553,7 +544,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
           enableRotate={true}
           autoRotate={autoRotate}
           autoRotateSpeed={rotateSpeed * 3} // Scale the speed properly
-          maxDistance={200}
+          maxDistance={1000} // Increased max distance
           minDistance={10}
           enableDamping={true}
           dampingFactor={0.05}
