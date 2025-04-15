@@ -13,6 +13,7 @@ type SocialCardModalProps = {
   graphImageUrl: string;
   profileData: {
     name: string;
+    picture: string;
     followers: number;
     following: number;
     posts: number;
@@ -154,12 +155,24 @@ export default function SocialCardModal({
             <div className="w-full md:w-[350px] p-8 bg-gradient-to-b from-[#2A2E38] to-[#1E2129] md:h-full flex flex-col">
               <div className="flex items-center gap-4 mb-6">
                 <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#3CA3FC] to-[#EB7BF4] flex items-center justify-center text-white font-bold text-2xl">
-                  {profileData.name.substring(0, 2).toUpperCase()}
+                <div className="w-full h-full rounded-full overflow-hidden bg-[#2A2E38] flex items-center justify-center text-white font-bold text-2xl">
+                  {profileData.picture ? (
+                    <img
+                      src={profileData.picture}
+                      alt={profileData.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    profileData.name.substring(0, 2).toUpperCase()
+                  )}
+                </div>
                 </div>
                 <div>
-                  <p className="text-sm text-[#44D5DE] font-medium">lens/{lensHandle}</p>
-                  <h2 className="text-2xl font-bold text-white">{profileData.name}</h2>
-                  <p className="text-[#8A8F9D]">@{lensHandle}</p>
+                  <p className="text-sm text-[#44D5DE] font-medium">{lensHandle}</p>
+                  {/* <h2 className="text-2xl font-bold text-white">{profileData.name}</h2> */}
+                  <h2 className="text-2xl font-bold text-white">
+                    @{lensHandle.startsWith("lens/") ? lensHandle.slice(5) : lensHandle}
+                  </h2>
                 </div>
               </div>
 
@@ -167,18 +180,18 @@ export default function SocialCardModal({
                 <StatCard label="Followers" value={profileData.followers} color="from-[#3CA3FC] to-[#3CA3FC]" />
                 <StatCard label="Following" value={profileData.following} color="from-[#58CF86] to-[#58CF86]" />
                 <StatCard label="Posts" value={profileData.posts} color="from-[#FBC75D] to-[#FBC75D]" />
-                <StatCard label="Score" value={`${(profileData.score / 100).toLocaleString()}/100`} color="from-[#EB7BF4] to-[#EB7BF4]" />
+                <StatCard label="Lens Score" value={`${(profileData.score / 100).toLocaleString()}/100`} color="from-[#EB7BF4] to-[#EB7BF4]" />
               </div>
 
               <div className="bg-[#2A2E38]/60 rounded-lg p-4 border border-[#3A3E48] mb-6">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-xs text-[#8A8F9D] uppercase tracking-wider">Network Score</span>
-                  <span className="text-[#5FD39C] font-bold">{profileData.score}</span>
+                  <span className="text-[#5FD39C] font-bold">{(profileData.score / 100)}</span>
                 </div>
                 <div className="h-2 bg-[#3A3E48] rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-gradient-to-r from-[#3CA3FC] to-[#58CF86] rounded-full" 
-                    style={{ width: `${Math.min(profileData.score, 100)}%` }}
+                    style={{ width: `${Math.min((profileData.score/100), 100)}%` }}
                   />
                 </div>
               </div>

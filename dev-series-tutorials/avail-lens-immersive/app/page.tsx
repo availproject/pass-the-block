@@ -42,6 +42,7 @@ export default function Home() {
   const [currentNetwork, setCurrentNetwork] = useState<string>('lens/avail_project');
   const [selectedNode, setSelectedNode] = useState<{
     label: string;
+    picture: string;
     followers: number;
     following: number;
     posts: number;
@@ -77,6 +78,7 @@ export default function Home() {
       // Update selected node info
       setSelectedNode({
         label: node.label,
+        picture: node.picture,
         followers: node.followers || 0,
         following: node.following || 0,
         posts: Math.floor(Math.random() * 200) + 10, // Placeholder for posts data
@@ -98,6 +100,7 @@ export default function Home() {
       // Only update dashboard info without setting targetHandle
       setSelectedNode({
         label: initialNode.label || initialHandle,
+        picture: initialNode.picture,
         followers: initialNode.followers || 555,
         following: initialNode.following || 6,
         posts: 42,
@@ -136,6 +139,7 @@ export default function Home() {
           if (node) {
             setSelectedNode({
               label: node.label,
+              picture: node.picture, 
               followers: node.followers || 0,
               following: node.following || 0,
               posts: Math.floor(Math.random() * 200) + 10, // Placeholder for posts data
@@ -204,6 +208,7 @@ export default function Home() {
           // Update selected node info
           setSelectedNode({
             label: existingNode.label,
+            picture: existingNode.picture,
             followers: existingNode.followers || 0,
             following: existingNode.following || 0,
             posts: Math.floor(Math.random() * 200) + 10,
@@ -327,6 +332,7 @@ export default function Home() {
         // Update selected node info for the dashboard
         setSelectedNode({
           label: targetNode.label,
+          picture: targetNode.picture,
           followers: targetNode.followers || 0,
           following: targetNode.following || 0,
           posts: Math.floor(Math.random() * 200) + 10, // Placeholder for posts data
@@ -732,6 +738,7 @@ export default function Home() {
             graphImageUrl={graphImageUrl}
             profileData={{
               name: selectedNode?.label || 'availproject',
+              picture: selectedNode?.picture || 'default_image.png',
               followers: selectedNode?.followers || 0,
               following: selectedNode?.following || 0,
               posts: selectedNode?.posts || 0,
