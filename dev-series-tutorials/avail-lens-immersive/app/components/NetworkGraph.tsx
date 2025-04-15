@@ -35,6 +35,8 @@ interface NetworkGraphProps {
   isScreenshot?: boolean;
   screenshotMode?: boolean;
   hideUI?: boolean;
+  captureZoom?: number;
+  isCaptureComponent?: boolean;
 }
 
 // Camera animation component
@@ -69,9 +71,9 @@ const CameraAnimation = ({
       // Calculate distance to target to adjust animation duration
       const distance = new THREE.Vector3(...targetPosition).distanceTo(startPosition.current);
       
-      // Longer duration for smoother animation
-      const baseDuration = 2.5;
-      const distanceBasedDuration = Math.min(baseDuration + (distance / 150), 3.5); // Cap at 3.5 seconds
+      // Shorter duration for screenshot mode
+      const baseDuration = isScreenshot ? 1.5 : 2.5;
+      const distanceBasedDuration = Math.min(baseDuration + (distance / 150), isScreenshot ? 2.0 : 3.5);
       
       const duration = distanceBasedDuration;
       const progress = Math.min(elapsedTime / duration, 1);
@@ -85,7 +87,7 @@ const CameraAnimation = ({
       // Use different offsets based on whether it's a double-click, screenshot, or search
       let offset;
       if (isScreenshot) {
-        offset = new THREE.Vector3(0, 0, 100); // Even larger offset for screenshot to show full network
+        offset = new THREE.Vector3(0, 0, 100); // Increased distance for screenshot to show more of the network
       } else if (isDoubleClick) {
         offset = new THREE.Vector3(0, 0, 20); // Front view for double-click
       } else {
@@ -190,7 +192,9 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
   onNetworkSwitch,
   isScreenshot = false,
   screenshotMode = false,
-  hideUI = false
+  hideUI = false,
+  captureZoom = 75,
+  isCaptureComponent = false
 }) => {
   // Find the target node's ID
   const initialTargetNodeId = nodes.find(node => 
@@ -308,7 +312,10 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
   const handleNodeDoubleClick = (label: string) => {
     setIsFromDoubleClick(true);
     window.dispatchEvent(new CustomEvent('updateTargetHandle', { 
-      detail: { handle: label.toLowerCase(), isDoubleClick: true } 
+      detail: { 
+        handle: label.toLowerCase(), 
+        isDoubleClick: true 
+      } 
     }));
   };
 
@@ -405,9 +412,38 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
 
   // Listen for camera control events from Dashboard
   useEffect(() => {
-    const handleResetCamera = () => resetCamera();
-    const handleZoomIn = () => zoomIn();
-    const handleZoomOut = () => zoomOut();
+    const handleResetCamera = (event: Event) => {
+      // Check if this is a scoped event for a capture component
+      const customEvent = event as CustomEvent;
+      const isCaptureEvent = customEvent.detail?.isCaptureMode;
+      
+      // Only proceed if this is not a capture event or if this component is a capture component
+      if (!isCaptureEvent || isCaptureComponent) {
+        resetCamera();
+      }
+    };
+    
+    const handleZoomIn = (event: Event) => {
+      // Check if this is a scoped event for a capture component
+      const customEvent = event as CustomEvent;
+      const isCaptureEvent = customEvent.detail?.isCaptureMode;
+      
+      // Only proceed if this is not a capture event or if this component is a capture component
+      if (!isCaptureEvent || isCaptureComponent) {
+        zoomIn();
+      }
+    };
+    
+    const handleZoomOut = (event: Event) => {
+      // Check if this is a scoped event for a capture component
+      const customEvent = event as CustomEvent;
+      const isCaptureEvent = customEvent.detail?.isCaptureMode;
+      
+      // Only proceed if this is not a capture event or if this component is a capture component
+      if (!isCaptureEvent || isCaptureComponent) {
+        zoomOut();
+      }
+    };
     
     window.addEventListener('resetCamera', handleResetCamera);
     window.addEventListener('zoomIn', handleZoomIn);
@@ -418,7 +454,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
       window.removeEventListener('zoomIn', handleZoomIn);
       window.removeEventListener('zoomOut', handleZoomOut);
     };
-  }, []);
+  }, [isCaptureComponent]);
 
   // Listen for autoRotate and rotateSpeed changes from Dashboard
   useEffect(() => {
@@ -439,18 +475,48 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
     };
   }, []);
 
-  // Special handling for screenshot mode
+  // At the beginning of the component's render, add the screenshot related state
   const [screenshotPosition, setScreenshotPosition] = useState<[number, number, number] | null>(null);
   const [screenshotNodeId, setScreenshotNodeId] = useState<string | null>(null);
   const [isDoubleClick, setIsDoubleClick] = useState(false);
   const [isAutoRotate, setIsAutoRotate] = useState(true);
   const [ensureRender, setEnsureRender] = useState(false);
 
+  // Also add a useEffect to listen for screenshot mode events
+  useEffect(() => {
+    // Listen for explicit screenshot capture requests
+    const handleScreenshotRequest = (event: CustomEvent<{ handle: string | null, isCaptureMode?: boolean }>) => {
+      const nodeLabel = event.detail.handle;
+      const isCaptureEvent = event.detail.isCaptureMode;
+      
+      // Only proceed if this is not a capture event or if this component is a capture component
+      if ((!isCaptureEvent || isCaptureComponent) && nodeLabel) {
+        console.log("Screenshot request for node:", nodeLabel);
+        
+        // Find the target node
+        const targetNode = spacedNodes.find(
+          n => n.label?.toLowerCase() === nodeLabel.toLowerCase()
+        );
+        
+        if (targetNode) {
+          console.log("Setting screenshot position", targetNode.position);
+          setScreenshotPosition(targetNode.position);
+          setScreenshotNodeId(targetNode.id);
+        }
+      }
+    };
+
+    window.addEventListener('screenshotRequest', handleScreenshotRequest as EventListener);
+    return () => {
+      window.removeEventListener('screenshotRequest', handleScreenshotRequest as EventListener);
+    };
+  }, [spacedNodes, isCaptureComponent]);
+
   return (
     <div id="network-graph" className="w-full h-full">
       <Canvas
         camera={{ 
-          position: isScreenshot ? [5, 5, 100] : [5, 5, 75], // Start much further away for better initial view
+          position: isScreenshot ? [5, 5, captureZoom] : [5, 5, 75], // Use captureZoom for screenshot mode
           fov: isScreenshot ? 50 : 60, // Lower FOV for screenshot to reduce distortion
           near: 0.1,
           far: 5000 // Increased far plane for larger networks

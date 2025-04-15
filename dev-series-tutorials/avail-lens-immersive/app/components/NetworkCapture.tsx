@@ -26,6 +26,7 @@ interface NetworkCaptureProps {
   existingLinks?: NetworkLink[];
   nodes?: NetworkNode[];
   links?: NetworkLink[];
+  testMode?: boolean; // Added for temporary testing
 }
 
 export default function NetworkCapture({ 
@@ -33,7 +34,8 @@ export default function NetworkCapture({
   lensAccountId, 
   onCapture,
   existingNodes,
-  existingLinks
+  existingLinks,
+  testMode = false // Default to false
 }: NetworkCaptureProps) {
   const [isCapturing, setIsCapturing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,6 +44,7 @@ export default function NetworkCapture({
     links: NetworkLink[];
   }>({ nodes: [], links: [] });
   const [targetHandle, setTargetHandle] = useState<string | null>(null);
+  const [captureReady, setCaptureReady] = useState(false);
   
   // Set up a ref for the canvas
   const containerRef = useRef<HTMLDivElement>(null);
@@ -138,22 +141,38 @@ export default function NetworkCapture({
     fetchNetworkData();
   }, [profileHandle, existingNodes, existingLinks]);
 
-  // Trigger the capture process once the network data is loaded
+  // Set up a timeout to mark the capture as ready after network data is loaded
+  useEffect(() => {
+    if (!isLoading && networkData.nodes.length > 0) {
+      console.log('Setting up capture ready timeout...');
+      // Increased delay to ensure graph is fully rendered and positioned
+      const timer = setTimeout(() => {
+        console.log('Capture ready timeout triggered');
+        setCaptureReady(true);
+      }, 3000); // Increased to 3 seconds to ensure render is complete
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, networkData]);
+
+  // Trigger the capture process once the capture is marked as ready
   useEffect(() => {
     console.log('Capture trigger effect:', {
-      isLoading,
+      captureReady,
       isCapturing,
       hasNodes: networkData.nodes.length > 0
     });
 
-    if (!isLoading && !isCapturing && networkData.nodes.length > 0) {
+    if (captureReady && !isCapturing && networkData.nodes.length > 0) {
       console.log('Setting up capture timeout...');
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         console.log('Capture timeout triggered, calling captureNetworkGraph');
         captureNetworkGraph();
-      }, 1500); // Give the graph time to render
+      }, 1000); // Additional delay after ready state
+      
+      return () => clearTimeout(timer);
     }
-  }, [isLoading, networkData]);
+  }, [captureReady, isCapturing, networkData]);
 
   // Function to capture the network graph as an image
   const captureNetworkGraph = async () => {
@@ -238,15 +257,60 @@ export default function NetworkCapture({
     }
   };
 
+  // Update the effect for enforcing camera position by adding a unique scope to the events
+  useEffect(() => {
+    if (captureReady && targetHandle) {
+      console.log('Enforcing camera focus for capture');
+      
+      // Use a unique ID to scope events to this capture component
+      const captureId = `capture-${Date.now()}`;
+      
+      // First reset camera to default position - use scoped event
+      const timer1 = setTimeout(() => {
+        // Use detail to specify this is for a capture component
+        window.dispatchEvent(new CustomEvent('resetCamera', { 
+          detail: { isCaptureMode: true, captureId }
+        }));
+      }, 800);
+      
+      // Then focus on target node - use scoped event
+      const timer2 = setTimeout(() => {
+        console.log('Focusing camera on target node for capture:', targetHandle);
+        window.dispatchEvent(new CustomEvent('screenshotRequest', { 
+          detail: { 
+            handle: targetHandle.toLowerCase(),
+            isCaptureMode: true,
+            captureId
+          } 
+        }));
+      }, 1500);
+      
+      // Add a final camera adjustment to ensure full network visibility - use scoped event
+      const timer3 = setTimeout(() => {
+        console.log('Final camera adjustment for better network view');
+        window.dispatchEvent(new CustomEvent('zoomOut', {
+          detail: { isCaptureMode: true, captureId }
+        }));
+      }, 2200);
+      
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+        clearTimeout(timer3);
+      };
+    }
+  }, [captureReady, targetHandle]);
+
   return (
     <div 
       ref={containerRef} 
-      className="w-full h-full bg-black flex items-center justify-center" 
+      className={`w-full h-full bg-black flex items-center justify-center ${testMode ? 'border-2 border-blue-500' : ''}`}
       style={{ 
-        width: '720px', 
-        height: '720px', 
+        width: testMode ? '100%' : '720px', 
+        height: testMode ? '100%' : '720px', 
         position: 'relative', 
-        overflow: 'hidden' 
+        overflow: 'hidden',
+        borderRadius: '8px'
       }}
     >
       {!isLoading && networkData.nodes.length > 0 && (
@@ -258,7 +322,14 @@ export default function NetworkCapture({
           screenshotMode={true}
           hideUI={true}
           isScreenshot={true}
+          captureZoom={100}
+          isCaptureComponent={true}
         />
+      )}
+      {testMode && isCapturing && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-10">
+          <div className="text-white font-bold text-xl">Capturing...</div>
+        </div>
       )}
     </div>
   );
