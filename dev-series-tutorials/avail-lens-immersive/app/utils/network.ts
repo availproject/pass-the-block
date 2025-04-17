@@ -14,7 +14,8 @@ export async function buildNetwork(
       picture: profile.picture || 'default_image.png',
       followers: profile.followers,
       following: profile.following,
-      lensScore: profile.lensScore
+      lensScore: profile.lensScore,
+      posts: profile.posts
     };
 
     const network: FollowerNetwork = {
@@ -39,7 +40,8 @@ export async function buildNetwork(
         picture: follower.picture || 'default_image.png',
         followers: follower.followers,
         following: follower.following,
-        lensScore: follower.lensScore
+        lensScore: follower.lensScore,
+        posts: follower.posts
       });
 
       // Add link from starting node to follower

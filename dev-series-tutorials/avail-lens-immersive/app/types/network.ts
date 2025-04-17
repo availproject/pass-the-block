@@ -5,6 +5,7 @@ export interface FollowerNode {
   followers: number;
   following: number;
   lensScore: number;
+  posts: number; // Track post count
 }
 
 export interface FollowerLink {
@@ -25,5 +26,6 @@ export interface RawFollower {
   followers: number;
   following: number;
   lensScore: number;
+  posts: number; // Track post count
   address: string; // Keep address for internal use
 } 

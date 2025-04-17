@@ -81,7 +81,7 @@ export default function Home() {
         picture: node.picture,
         followers: node.followers || 0,
         following: node.following || 0,
-        posts: Math.floor(Math.random() * 200) + 10, // Placeholder for posts data
+        posts: node.posts || 0,
         lensScore: node.lensScore
       });
     }
@@ -103,7 +103,7 @@ export default function Home() {
         picture: initialNode.picture,
         followers: initialNode.followers || 555,
         following: initialNode.following || 6,
-        posts: 42,
+        posts: initialNode.posts || 42,
         lensScore: initialNode.lensScore
       });
     }
@@ -142,7 +142,7 @@ export default function Home() {
               picture: node.picture, 
               followers: node.followers || 0,
               following: node.following || 0,
-              posts: Math.floor(Math.random() * 200) + 10, // Placeholder for posts data
+              posts: node.posts || 0,
               lensScore: node.lensScore
             });
           }
@@ -211,7 +211,7 @@ export default function Home() {
             picture: existingNode.picture,
             followers: existingNode.followers || 0,
             following: existingNode.following || 0,
-            posts: Math.floor(Math.random() * 200) + 10,
+            posts: existingNode.posts || 0,
             lensScore: existingNode.lensScore
           });
           
@@ -335,7 +335,7 @@ export default function Home() {
           picture: targetNode.picture,
           followers: targetNode.followers || 0,
           following: targetNode.following || 0,
-          posts: Math.floor(Math.random() * 200) + 10, // Placeholder for posts data
+          posts: targetNode.posts || 0,
           lensScore: targetNode.lensScore 
         });
         

@@ -243,6 +243,7 @@ export async function getAccountMetadata(lensHandle: string): Promise<RawFollowe
       picture: account.metadata?.picture || 'default_image.png',
       followers: accountStats.graphFollowStats.followers,
       following: accountStats.graphFollowStats.following,
+      posts: accountStats.feedStats.posts,
       lensScore: account.score,
       address: account.address // Store address for API calls
     };
@@ -251,6 +252,7 @@ export async function getAccountMetadata(lensHandle: string): Promise<RawFollowe
       id: followerData.id,
       name: followerData.name,
       followers: followerData.followers,
+      posts: followerData.posts,
       address: followerData.address
     });
 
@@ -343,6 +345,7 @@ export async function getFollowerDetails(accountAddress: string, limit: number =
           picture: follower.metadata?.picture || "default_image.png",
           followers: statsResult.data.accountStats.graphFollowStats.followers,
           following: statsResult.data.accountStats.graphFollowStats.following,
+          posts: statsResult.data.accountStats.feedStats.posts,
           lensScore: follower.score,
           address: follower.address
         };

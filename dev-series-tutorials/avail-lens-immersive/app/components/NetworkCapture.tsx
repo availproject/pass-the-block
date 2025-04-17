@@ -11,6 +11,10 @@ interface NetworkNode {
   label: string;
   color?: string;
   picture?: string;
+  followers?: number;
+  following?: number;
+  lensScore?: number;
+  posts?: number;
 }
 
 interface NetworkLink {

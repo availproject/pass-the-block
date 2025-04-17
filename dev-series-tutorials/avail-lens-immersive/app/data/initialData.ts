@@ -18,7 +18,8 @@ export function processNetworkData(networkData: any) {
     followers: node.followers,
     following: node.following,
     picture: node.picture,
-    lensScore: node.lensScore
+    lensScore: node.lensScore,
+    posts: node.posts || 0
   }));
 
   const edges = networkData.links.map((link: any) => ({
@@ -60,7 +61,8 @@ export const initialData = {
       "picture": "https://ik.imagekit.io/lens/media-snapshot/aeec8da87b28eb7d6799129d604862ed5d4267411dc64aa1aa5f13bbbeb088ad.webp",
       "followers": 555,
       "following": 6,
-      "lensScore": 9993
+      "lensScore": 9993,
+      "posts": 15
     },
     {
       "id": "0x021135",
@@ -68,7 +70,8 @@ export const initialData = {
       "picture": "https://ik.imagekit.io/lens/media-snapshot/f58510e2b576d9753288e6c9f579158b30878734c64715c8c3043718e4f4f6df.webp",
       "followers": 24711,
       "following": 440,
-      "lensScore": 9998
+      "lensScore": 9998,
+      "posts": 786
     },
     {
       "id": "0xcd80",
