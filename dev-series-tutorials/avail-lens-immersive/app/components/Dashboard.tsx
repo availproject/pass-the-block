@@ -215,7 +215,7 @@ export default function Dashboard({
                   </CardBody>
                 </Card>
 
-                {selectedNode?.lensReputationScore != null && (
+                {selectedNode?.lensReputationScore != null && selectedNode.lensReputationScore.score && (
                 <Card className="bg-gray-800/50 border border-gray-700">
                   <CardBody className="p-4">
                     <p className="text-lg font-bold text-gray-400">Lens Reputation</p>
