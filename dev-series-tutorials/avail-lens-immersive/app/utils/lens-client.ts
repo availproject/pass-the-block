@@ -236,18 +236,9 @@ export async function getAccountMetadata(lensHandle: string): Promise<RawFollowe
       hasStats: !!result.data?.accountStats
     });
 
-    let lensReputationScore: LensReputationScore | undefined = undefined;
-    try {
-      const owner = result.data.account.owner;
-      const lensAccountAddress = result.data.account.address;
-      const lensRepResponse = await fetch(`https://lensreputation.xyz/api/public/sbt?wallet=${owner}&lensAccountAddress=${lensAccountAddress}`);
-      if (lensRepResponse.ok) {
-        lensReputationScore = await lensRepResponse.json();
-        console.log('📈 LensReputation score found:', lensReputationScore);
-      }
-    } catch (err) {
-      console.warn('Error while fetching LensReputation score:', err);
-    }
+    const owner = result.data.account.owner;
+    const lensAccountAddress = result.data.account.address;
+    const lensReputationScore = await fetchLensReputationScore(owner, lensAccountAddress);
 
     const { account, accountStats } = result.data;
 
@@ -474,6 +465,29 @@ export async function fetchAccountByAddress(address: string) {
     });
     return null;
   }
+}
+
+/**
+ * Fetches the LensReputationScore from the public LensReputation API.
+ * 
+ * @param owner - The wallet address of the Lens profile owner.
+ * @param lensAccountAddress - The Lens profile address.
+ * @returns A Promise that resolves to a LensReputationScore object if available, or undefined if not found or on error.
+ */
+async function fetchLensReputationScore(owner: string, lensAccountAddress: string): Promise<LensReputationScore | undefined> {
+  try {
+    const response = await fetch(
+      `https://lensreputation.xyz/api/public/sbt?wallet=${owner}&lensAccountAddress=${lensAccountAddress}`
+    );
+    if (response.ok) {
+      const data: LensReputationScore = await response.json();
+      console.log('📈 LensReputation score found:', data);
+      return data;
+    }
+  } catch (err) {
+    console.warn('Error while fetching LensReputation score:', err);
+  }
+  return undefined;
 }
 
 /**
