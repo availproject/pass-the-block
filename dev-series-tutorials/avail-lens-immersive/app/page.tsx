@@ -11,7 +11,7 @@ import WalletButton from './components/WalletButton';
 import MultiSelectInput from './components/MultiSelectInput';
 import { useWeb3 } from './components/Providers';
 import { authenticateForPosting, postToLens } from './utils/lens-auth';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { uploadImageToGrove } from './utils/grove-storage';
 import ReactDOM from 'react-dom/client';
 import { LensReputationScore } from './types/network';
@@ -599,9 +599,6 @@ export default function Home() {
 
   return (
     <main className="relative w-full h-screen overflow-hidden bg-gradient-to-br from-gray-900 to-black">
-      {/* Toast container */}
-      <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
-      
       {/* Wallet button for desktop */}
       <div className="absolute top-4 right-4 z-20 hidden md:block">
         <WalletButton />
@@ -635,7 +632,7 @@ export default function Home() {
                 <div className="flex flex-row gap-2 w-32 md:w-auto">
                   <Button
                     color="primary"
-                    onClick={handleSearch}
+                    onPress={handleSearch}
                     isDisabled={!profileHandle.trim() || isVisualizeLoading}
                     size="lg"
                     radius="lg"
@@ -659,7 +656,7 @@ export default function Home() {
                   {/* Post to Lens button for desktop */}
                   <Button
                     color="secondary"
-                    onClick={handlePostToLens}
+                    onPress={handlePostToLens}
                     isLoading={isModalLoading}
                     isDisabled={!connected || !selectedNode}
                     size="lg"
@@ -696,7 +693,7 @@ export default function Home() {
                   {/* Post to Lens button for mobile only - always visible but disabled when needed */}
                   <Button
                     color="secondary"
-                    onClick={handlePostToLens}
+                    onPress={handlePostToLens}
                     isLoading={isModalLoading}
                     isDisabled={!connected || !selectedNode}
                     size="md"

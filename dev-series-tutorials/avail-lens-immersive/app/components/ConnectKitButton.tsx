@@ -3,9 +3,23 @@
 import { ConnectKitButton as ConnectKitButtonOriginal } from 'connectkit';
 import { useAccount } from 'wagmi';
 import { Button } from '@nextui-org/react';
+import { useCallback, useState } from 'react';
+import toast from 'react-hot-toast';
 
 const ConnectKitButton = () => {
   const { isConnected, isConnecting } = useAccount();
+  const [isError, setIsError] = useState(false);
+
+  const handleClick = useCallback((showFn: (() => void) | undefined) => {
+    try {
+      if (showFn) {
+        showFn();
+      }
+      setIsError(false);
+    } catch (error) {
+      setIsError(false);
+    }
+  }, []);
 
   return (
     <ConnectKitButtonOriginal.Custom>
@@ -19,11 +33,13 @@ const ConnectKitButton = () => {
             }`}
             radius="full"
             variant={isConnected ? "flat" : "bordered"}
-            onClick={show}
-            isLoading={isConnecting}
+            onPress={() => handleClick(show)}
+            isLoading={isConnecting || isError}
           >
             {isConnecting
               ? 'Connecting...'
+              : isError
+              ? 'Connecting...' // Changed from "Retrying..." to be more subtle
               : isConnected
               ? ensName || truncatedAddress
               : 'Connect Wallet'}
