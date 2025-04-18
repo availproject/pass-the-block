@@ -15,7 +15,8 @@ export async function buildNetwork(
       followers: profile.followers,
       following: profile.following,
       lensScore: profile.lensScore,
-      posts: profile.posts
+      posts: profile.posts,
+      lensReputationScore: profile.lensReputationScore,
     };
 
     const network: FollowerNetwork = {

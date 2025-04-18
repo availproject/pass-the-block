@@ -29,6 +29,7 @@ export interface RawFollower {
   lensScore: number;
   posts: number; // Track post count
   address: string; // Keep address for internal use
+  lensReputationScore?: LensReputationScore;
 }
 
 export interface LensReputationScore {

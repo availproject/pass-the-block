@@ -19,7 +19,8 @@ export function processNetworkData(networkData: any) {
     following: node.following,
     picture: node.picture,
     lensScore: node.lensScore,
-    posts: node.posts || 0
+    posts: node.posts || 0,
+    lensReputationScore: node.lensReputationScore,
   }));
 
   const edges = networkData.links.map((link: any) => ({
