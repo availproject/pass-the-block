@@ -11,6 +11,8 @@ import {
   MediaImageMimeType,
   MetadataLicenseType,
 } from "@lens-protocol/metadata";
+import { getWalletClient } from 'wagmi/actions';
+import { createWalletClient, custom } from 'viem';
 
 // Function to authenticate a user when they want to post
 export async function authenticateForPosting(
@@ -272,30 +274,36 @@ export async function postToLens(
 
       // Initialize ethers provider and signer
       console.log("Initializing ethers provider");
-      const provider = new BrowserProvider(window.ethereum as Eip1193Provider);
-      console.log("Provider created:", !!provider);
       
-      const signer = await provider.getSigner();
-      console.log("Signer created:", !!signer);
-      console.log("Signer address:", await signer.getAddress());
-      
-      // Use the post action with ethers signer
-      console.log("🔄 Calling post method with ethers signer...");
-      
-      console.log("💼 Preparing to handle post operation");
-      const result = await post(sessionClient, { contentUri: contentUriParam })
-        .andThen(handleOperationWith(signer))  
-        .andThen(sessionClient.waitForTransaction);
+      // Try to use window.ethereum, will work with MetaMask and many other wallets
+      if (typeof window !== 'undefined' && window.ethereum) {
+        const provider = new BrowserProvider(window.ethereum as Eip1193Provider);
+        console.log("Provider created:", !!provider);
+        
+        const signer = await provider.getSigner();
+        console.log("Signer created:", !!signer);
+        console.log("Signer address:", await signer.getAddress());
+        
+        // Use the post action with ethers signer
+        console.log("🔄 Calling post method with ethers signer...");
+        
+        console.log("💼 Preparing to handle post operation");
+        const result = await post(sessionClient, { contentUri: contentUriParam })
+          .andThen(handleOperationWith(signer))  
+          .andThen(sessionClient.waitForTransaction);
 
-      
-      console.log("📨 Post result:", result);
-      
-      // Success - if we got here, the post was successful
-      console.log("🎉 Post created successfully!");
-      return {
-        success: true,
-        txId: result.isOk() ? result.value || 'transaction-id' : 'transaction-failed'
-      };
+        
+        console.log("📨 Post result:", result);
+        
+        // Success - if we got here, the post was successful
+        console.log("🎉 Post created successfully!");
+        return {
+          success: true,
+          txId: result.isOk() ? result.value || 'transaction-id' : 'transaction-failed'
+        };
+      } else {
+        throw new Error("No Ethereum provider available. Please use a Web3 compatible browser or wallet.");
+      }
     } catch (postError) {
       console.error("❌ Error using post action:", postError);
       console.error("Error details:", JSON.stringify(postError, null, 2));
