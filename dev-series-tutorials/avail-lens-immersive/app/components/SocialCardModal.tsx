@@ -18,6 +18,7 @@ type SocialCardModalProps = {
     following: number;
     posts: number;
     score: number;
+    lensReputationScore?: number
   };
   onCardCapture?: (imageUrl: string) => void;
 };
@@ -180,12 +181,29 @@ export default function SocialCardModal({
                 <StatCard label="Followers" value={profileData.followers} color="from-[#3CA3FC] to-[#3CA3FC]" />
                 <StatCard label="Following" value={profileData.following} color="from-[#58CF86] to-[#58CF86]" />
                 <StatCard label="Posts" value={profileData.posts} color="from-[#FBC75D] to-[#FBC75D]" />
-                <StatCard label="Lens Score" value={`${(profileData.score / 100).toLocaleString()}/100`} color="from-[#EB7BF4] to-[#EB7BF4]" />
+                {profileData.lensReputationScore !== undefined && (
+                  <StatCard
+                    label="Lens Reputation"
+                    value={`${(profileData.lensReputationScore).toLocaleString()} `}
+                    color="from-[#EB7BF4] to-[#EB7BF4]"
+                    legend={
+                      <a
+                        href="https://lensreputation.xyz"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-[#44D5DE] underline opacity-80 hover:opacity-100"
+                      >
+                        by LensReputation
+                      </a>
+                    }
+                  />
+ 
+                )}
               </div>
 
               <div className="bg-[#2A2E38]/60 rounded-lg p-4 border border-[#3A3E48] mb-6">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs text-[#8A8F9D] uppercase tracking-wider">Network Score</span>
+                  <span className="text-xs text-[#8A8F9D] uppercase tracking-wider">Lens Score</span>
                   <span className="text-[#5FD39C] font-bold">{(profileData.score / 100)}</span>
                 </div>
                 <div className="h-2 bg-[#3A3E48] rounded-full overflow-hidden">
@@ -242,7 +260,7 @@ export default function SocialCardModal({
   );
 }
 
-function StatCard({ label, value, color }: { label: string; value: string | number; color: string }) {
+function StatCard({ label, value, color, legend }: { label: string; value: string | number; color: string, legend?: React.ReactNode }) {
   return (
     <div className="bg-[#2A2E38]/60 rounded-lg p-3 border border-[#3A3E48] hover:translate-y-[-2px] transition-transform">
       <p className="text-xs text-[#8A8F9D] uppercase tracking-wider mb-1">{label}</p>
@@ -254,6 +272,9 @@ function StatCard({ label, value, color }: { label: string; value: string | numb
       }}>
         {value}
       </p>
+      {legend && (
+        <div className="mt-1">{legend}</div>
+      )}
     </div>
   );
 }
