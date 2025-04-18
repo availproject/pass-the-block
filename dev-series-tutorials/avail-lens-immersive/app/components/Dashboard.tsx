@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Card, CardBody, Button, Divider } from '@nextui-org/react';
 import { ChevronRightIcon, ChevronLeftIcon, ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import GraphControls from './GraphControls';
+import { LensReputationScore } from '../types/network';
 
 interface DashboardProps {
   selectedNode: {
@@ -10,6 +11,7 @@ interface DashboardProps {
     following: number;
     posts: number;
     lensScore: number;
+    lensReputationScore?: LensReputationScore;
   } | null;
   networks?: string[];
   currentNetwork?: string;
@@ -212,6 +214,17 @@ export default function Dashboard({
                     </p>
                   </CardBody>
                 </Card>
+
+                {selectedNode?.lensReputationScore != null && (
+                <Card className="bg-gray-800/50 border border-gray-700">
+                  <CardBody className="p-4">
+                    <p className="text-lg font-bold text-gray-400">Lens Reputation</p>
+                    <p className="text-2xl font-semibold text-white">
+                      {(selectedNode.lensReputationScore.score).toLocaleString()}
+                    </p>
+                  </CardBody>
+                </Card>
+                )}
 
                 {/* Network Section */}
                 <div>
