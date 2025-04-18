@@ -1,5 +1,5 @@
 import { ApolloClient, InMemoryCache, gql } from '@apollo/client';
-import { RawFollower } from '../types/network';
+import { LensReputationScore, RawFollower } from '../types/network';
 
 // Initialize Apollo Client
 const apolloClient = new ApolloClient({
@@ -25,6 +25,7 @@ query AccountStats($accountStatsRequest: AccountStatsRequest!, $accountRequest: 
   }
   account(request: $accountRequest) {
     address
+    owner
     username {
       id
       localName
@@ -235,6 +236,19 @@ export async function getAccountMetadata(lensHandle: string): Promise<RawFollowe
       hasStats: !!result.data?.accountStats
     });
 
+    let lensReputationScore: LensReputationScore | undefined = undefined;
+    try {
+      const owner = result.data.account.owner;
+      const lensAccountAddress = result.data.account.address;
+      const lensRepResponse = await fetch(`https://lensreputation.xyz/api/public/sbt?wallet=${owner}&lensAccountAddress=${lensAccountAddress}`);
+      if (lensRepResponse.ok) {
+        lensReputationScore = await lensRepResponse.json();
+        console.log('📈 LensReputation score found:', lensReputationScore);
+      }
+    } catch (err) {
+      console.warn('Error while fetching LensReputation score:', err);
+    }
+
     const { account, accountStats } = result.data;
 
     const followerData = {
@@ -245,7 +259,8 @@ export async function getAccountMetadata(lensHandle: string): Promise<RawFollowe
       following: accountStats.graphFollowStats.following,
       posts: accountStats.feedStats.posts,
       lensScore: account.score,
-      address: account.address // Store address for API calls
+      address: account.address, // Store address for API calls
+      lensReputationScore
     };
 
     console.log('✅ Account metadata processed:', {
@@ -253,7 +268,8 @@ export async function getAccountMetadata(lensHandle: string): Promise<RawFollowe
       name: followerData.name,
       followers: followerData.followers,
       posts: followerData.posts,
-      address: followerData.address
+      address: followerData.address,
+      lensReputationScore
     });
 
     return followerData;
