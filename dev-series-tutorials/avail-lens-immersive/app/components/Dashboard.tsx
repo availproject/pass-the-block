@@ -11,7 +11,7 @@ interface DashboardProps {
     following: number;
     posts: number;
     lensScore: number;
-    lensReputationScore?: LensReputationScore;
+    lensReputationScore?: LensReputationScore | undefined;
   } | null;
   networks?: string[];
   currentNetwork?: string;

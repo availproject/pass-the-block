@@ -14,6 +14,7 @@ import { authenticateForPosting, postToLens } from './utils/lens-auth';
 import toast, { Toaster } from 'react-hot-toast';
 import { uploadImageToGrove } from './utils/grove-storage';
 import ReactDOM from 'react-dom/client';
+import { LensReputationScore } from './types/network';
 
 
 export default function Home() {
@@ -47,7 +48,7 @@ export default function Home() {
     following: number;
     posts: number;
     lensScore: number;
-    lensReputationScore?: number;
+    lensReputationScore?: LensReputationScore | undefined;
   } | null>(null);
   
   // Get the ordered list of networks
