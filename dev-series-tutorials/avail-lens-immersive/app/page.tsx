@@ -14,6 +14,7 @@ import { authenticateForPosting, postToLens } from './utils/lens-auth';
 import toast, { Toaster } from 'react-hot-toast';
 import { uploadImageToGrove } from './utils/grove-storage';
 import ReactDOM from 'react-dom/client';
+import { LensReputationScore } from './types/network';
 
 
 export default function Home() {
@@ -47,6 +48,7 @@ export default function Home() {
     following: number;
     posts: number;
     lensScore: number;
+    lensReputationScore?: LensReputationScore | undefined;
   } | null>(null);
   
   // Get the ordered list of networks
@@ -230,8 +232,9 @@ export default function Home() {
       if (!response.ok) throw new Error('Network request failed');
       
       const data = await response.json();
+
       const processedData = processNetworkData(data);
-      
+
       // Generate offset for this network cluster
       const clusterIndex = networkClusters + 1;
       const offset = [
@@ -336,7 +339,8 @@ export default function Home() {
           followers: targetNode.followers || 0,
           following: targetNode.following || 0,
           posts: targetNode.posts || 0,
-          lensScore: targetNode.lensScore 
+          lensScore: targetNode.lensScore,
+          lensReputationScore: targetNode.lensReputationScore
         });
         
         // Set target handle with animation - same pattern as above

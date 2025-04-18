@@ -1,5 +1,5 @@
 import { ApolloClient, InMemoryCache, gql } from '@apollo/client';
-import { RawFollower } from '../types/network';
+import { LensReputationScore, RawFollower } from '../types/network';
 
 // Initialize Apollo Client
 const apolloClient = new ApolloClient({
@@ -25,6 +25,7 @@ query AccountStats($accountStatsRequest: AccountStatsRequest!, $accountRequest: 
   }
   account(request: $accountRequest) {
     address
+    owner
     username {
       id
       localName
@@ -235,6 +236,10 @@ export async function getAccountMetadata(lensHandle: string): Promise<RawFollowe
       hasStats: !!result.data?.accountStats
     });
 
+    const owner = result.data.account.owner;
+    const lensAccountAddress = result.data.account.address;
+    const lensReputationScore = await fetchLensReputationScore(owner, lensAccountAddress);
+
     const { account, accountStats } = result.data;
 
     const followerData = {
@@ -245,7 +250,8 @@ export async function getAccountMetadata(lensHandle: string): Promise<RawFollowe
       following: accountStats.graphFollowStats.following,
       posts: accountStats.feedStats.posts,
       lensScore: account.score,
-      address: account.address // Store address for API calls
+      address: account.address, // Store address for API calls
+      lensReputationScore
     };
 
     console.log('✅ Account metadata processed:', {
@@ -253,7 +259,8 @@ export async function getAccountMetadata(lensHandle: string): Promise<RawFollowe
       name: followerData.name,
       followers: followerData.followers,
       posts: followerData.posts,
-      address: followerData.address
+      address: followerData.address,
+      lensReputationScore
     });
 
     return followerData;
@@ -458,6 +465,29 @@ export async function fetchAccountByAddress(address: string) {
     });
     return null;
   }
+}
+
+/**
+ * Fetches the LensReputationScore from the public LensReputation API.
+ * 
+ * @param owner - The wallet address of the Lens profile owner.
+ * @param lensAccountAddress - The Lens profile address.
+ * @returns A Promise that resolves to a LensReputationScore object if available, or undefined if not found or on error.
+ */
+async function fetchLensReputationScore(owner: string, lensAccountAddress: string): Promise<LensReputationScore | undefined> {
+  try {
+    const response = await fetch(
+      `https://lensreputation.xyz/api/public/sbt?wallet=${owner}&lensAccountAddress=${lensAccountAddress}`
+    );
+    if (response.ok) {
+      const data: LensReputationScore = await response.json();
+      console.log('📈 LensReputation score found:', data);
+      return data;
+    }
+  } catch (err) {
+    console.warn('Error while fetching LensReputation score:', err);
+  }
+  return undefined;
 }
 
 /**
