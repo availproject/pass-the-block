@@ -743,7 +743,8 @@ export default function Home() {
               followers: selectedNode?.followers || 0,
               following: selectedNode?.following || 0,
               posts: selectedNode?.posts || 0,
-              score: selectedNode?.lensScore || 0
+              score: selectedNode?.lensScore || 0,
+              lensReputationScore: selectedNode?.lensReputationScore?.score,
             }}
             onCardCapture={handleSocialCardCapture}
           />

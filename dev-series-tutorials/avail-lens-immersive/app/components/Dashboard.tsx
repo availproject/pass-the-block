@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Card, CardBody, Button, Divider } from '@nextui-org/react';
+import { Card, CardBody, Button, Divider, CardFooter } from '@nextui-org/react';
 import { ChevronRightIcon, ChevronLeftIcon, ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import GraphControls from './GraphControls';
 import { LensReputationScore } from '../types/network';
@@ -218,11 +218,27 @@ export default function Dashboard({
                 {selectedNode?.lensReputationScore != null && selectedNode.lensReputationScore.score && (
                 <Card className="bg-gray-800/50 border border-gray-700">
                   <CardBody className="p-4">
+                  <div className="flex items-center justify-between">
+                  <div>
                     <p className="text-lg font-bold text-gray-400">Lens Reputation</p>
                     <p className="text-2xl font-semibold text-white">
                       {(selectedNode.lensReputationScore.score).toLocaleString()}
                     </p>
+                  </div>
+
+                </div>
                   </CardBody>
+                  <CardFooter>
+                  <a
+                    href="https://lensreputation.xyz"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] text-[#44D5DE] font-semibold hover:underline transition-opacity"
+                    style={{ whiteSpace: 'nowrap' }}
+                  >
+                    by LensReputation
+                  </a>
+                  </CardFooter>
                 </Card>
                 )}
 
@@ -344,6 +360,15 @@ export default function Dashboard({
                       {(selectedNode.lensScore / 100).toLocaleString()} / 100
                     </p>
                   </div>
+
+                  {selectedNode?.lensReputationScore != null && selectedNode.lensReputationScore.score && (
+                    <div>
+                      <p className="text-xs text-gray-400">Lens Reputation</p>
+                      <p className="text-base font-semibold text-white">
+                        {(selectedNode.lensReputationScore.score).toLocaleString()}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
