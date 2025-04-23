@@ -43,6 +43,10 @@ npm run dev
 
 Visit [http://localhost:3000](http://localhost:3000) to explore the Lens Network visualization!
 
+## 🔗 Live Demo
+
+Check out the live version of this project at [lenscollective.me](https://lenscollective.me) to see the Social Graph visualization in action!
+
 ## 🎮 How to Use
 
 - 🖱️ **Mouse Controls**:
