@@ -2,6 +2,8 @@
 
 Welcome to Pass the Block! This series of tutorials will help you build awesome applications using Avail's technology stack, one block at a time.
 
+![Pass the Block Background](assets/images/pass-the-block.png)
+
 ## 📚 Tutorial Collection
 
 ### 1. Avail Notes App 
@@ -12,7 +14,7 @@ Build a decentralized notes app using Next.js and Avail Light Client! We'll cove
 - 🎨 Crafting smooth user interactions
 - 🛡️ Implementing rock-solid error handling
 
-[Explore the Project](dev-series-tutorials/avail-lightclient-notes-app-nextjs) | [Follow the Tutorial](https://blog.availproject.org/building-a-simple-next-js-app-with-avail-light-client)
+[Explore the Project](dev-series-tutorials/avail-lightclient-notes-app-nextjs) | [Follow the Tutorial](https://blog.availproject.org/build-a-simple-next-js-app-with-avails-light-client)
 
 ### 2. Avail Lens Immersive
 Create an immersive 3D social graph visualization with Next.js, Three.js, and Lens Protocol:
