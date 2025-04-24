@@ -1,6 +1,6 @@
 # 🧊 Pass the Block: Decentralized Notes App
 
-Welcome to the first tutorial in our Pass the Block series! Just like building with blocks, we'll stack knowledge piece by piece, helping you construct a decentralized notes application using Next.js and Avail's Light Client. Each step of the tutorial is a new block in your foundation - from understanding Data Availability (DA) to creating something real and practical. No more staring at a blank canvas - [follow along with our step-by-step guide](https://blog.availproject.org/building-a-simple-next-js-app-with-avail-light-client) as we assemble the building blocks of your first decentralized app!
+Welcome to the first tutorial in our Pass the Block series! Just like building with blocks, we'll stack knowledge piece by piece, helping you construct a decentralized notes application using Next.js and Avail's Light Client. Each step of the tutorial is a new block in your foundation - from understanding Data Availability (DA) to creating something real and practical. No more staring at a blank canvas - [follow along with our step-by-step guide](https://blog.availproject.org/build-a-simple-next-js-app-with-avails-light-client) as we assemble the building blocks of your first decentralized app!
 
 ## 📝 What You'll Build
 
@@ -48,9 +48,13 @@ This tutorial breaks down into four main parts:
 3. Implementing note submission and verification
 4. Adding advanced features like block confirmation tracking
 
+## 🔗 Other Projects
+
+Also check out our Lens Network Immersive Visualization project with a live demo at [lenscollective.me](https://lenscollective.me) to see an interactive 3D social graph visualization!
+
 ## 🤝 Need Help?
 
-- 💻 [Step-by-step tutorial](https://blog.availproject.org/building-a-simple-next-js-app-with-avail-light-client)
+- 💻 [Step-by-step tutorial](https://blog.availproject.org/build-a-simple-next-js-app-with-avails-light-client)
 - 📖 [Avail Documentation](https://docs.availproject.org)
 - 🔧 [Light Client API Documentation](https://docs.availproject.org/api-reference/avail-lc-api)
 

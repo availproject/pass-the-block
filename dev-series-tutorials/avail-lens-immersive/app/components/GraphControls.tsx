@@ -156,7 +156,7 @@ const GraphControls: React.FC<GraphControlsProps> = ({
                 size="sm"
                 variant="flat"
                 className="bg-gray-800/60"
-                onClick={zoomOut}
+                onPress={zoomOut}
               >
                 <MinusIcon className="h-4 w-4 text-gray-300 mr-1" />
                 Zoom Out
@@ -165,7 +165,7 @@ const GraphControls: React.FC<GraphControlsProps> = ({
                 size="sm"
                 variant="flat"
                 className="bg-gray-800/60"
-                onClick={zoomIn}
+                onPress={zoomIn}
               >
                 <PlusIcon className="h-4 w-4 text-gray-300 mr-1" />
                 Zoom In

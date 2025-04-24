@@ -1,5 +1,4 @@
-import { UsernameFragment, graphql } from "@lens-protocol/client";
-import { MediaImageFragment } from "./images";
+import { UsernameFragment, graphql, MediaImageFragment } from "@lens-protocol/client";
 
 export const AccountMetadataFragment = graphql(
   `
@@ -8,13 +7,9 @@ export const AccountMetadataFragment = graphql(
       bio
 
       thumbnail: picture(
-        request: { preferTransform: { fixedSize: { height: 128, width: 128 } } }
-      ) {
-        ...MediaImage
-      }
-      picture {
-        ...MediaImage
-      }
+        request: { preferTransform: { fixedSize: { height: 128, witdh: 128 } } }
+      )
+      picture
     }
   `,
   [MediaImageFragment]
@@ -31,11 +26,7 @@ export const AccountFragment = graphql(
       metadata {
         ...AccountMetadata
       }
-      stats {
-        followers
-        following
-      }
     }
   `,
   [UsernameFragment, AccountMetadataFragment]
-); 
+);

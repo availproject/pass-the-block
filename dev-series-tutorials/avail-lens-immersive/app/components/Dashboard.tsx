@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Card, CardBody, Button, Divider } from '@nextui-org/react';
+import { Card, CardBody, Button, Divider, CardFooter } from '@nextui-org/react';
 import { ChevronRightIcon, ChevronLeftIcon, ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import GraphControls from './GraphControls';
+import { LensReputationScore } from '../types/network';
 
 interface DashboardProps {
   selectedNode: {
@@ -10,6 +11,7 @@ interface DashboardProps {
     following: number;
     posts: number;
     lensScore: number;
+    lensReputationScore?: LensReputationScore | undefined;
   } | null;
   networks?: string[];
   currentNetwork?: string;
@@ -213,6 +215,33 @@ export default function Dashboard({
                   </CardBody>
                 </Card>
 
+                {selectedNode?.lensReputationScore != null && selectedNode.lensReputationScore.score && (
+                <Card className="bg-gray-800/50 border border-gray-700">
+                  <CardBody className="p-4">
+                  <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-lg font-bold text-gray-400">Lens Reputation</p>
+                    <p className="text-2xl font-semibold text-white">
+                      {(selectedNode.lensReputationScore.score).toLocaleString()}
+                    </p>
+                  </div>
+
+                </div>
+                  </CardBody>
+                  <CardFooter>
+                  <a
+                    href="https://lensreputation.xyz"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] text-[#44D5DE] font-semibold hover:underline transition-opacity"
+                    style={{ whiteSpace: 'nowrap' }}
+                  >
+                    by LensReputation
+                  </a>
+                  </CardFooter>
+                </Card>
+                )}
+
                 {/* Network Section */}
                 <div>
                   <h3 className="text-lg font-semibold text-white mb-4">Network</h3>
@@ -279,10 +308,16 @@ export default function Dashboard({
             }}
           >
             <div className="w-12 h-1.5 bg-gray-700 rounded-full"></div>
+            {/* Mobile Avail Tag */}
+            <div className="absolute top-2 right-3 px-2 py-1 rounded-full bg-gray-900/70 backdrop-blur-sm">
+              <span className="text-xs font-medium bg-gradient-to-r from-[#44D5DE] to-[#EDC7FC] text-transparent bg-clip-text">
+                Built by Avail
+              </span>
+            </div>
           </div>
           
           {/* Mobile Dashboard Header */}
-          <div className="px-4 pb-2 text-center">
+          <div className="px-4 pb-2 text-center relative">
             <div>
               <p className="text-gray-400 text-xs mb-1">
                 {selectedNode ? 'Profile Statistics' : 'Network Explorer'}
@@ -291,6 +326,7 @@ export default function Dashboard({
                 {selectedNode ? selectedNode.label : 'Select a node'}
               </h2>
             </div>
+            
           </div>
 
           <Divider className="bg-gray-800" />
@@ -324,6 +360,15 @@ export default function Dashboard({
                       {(selectedNode.lensScore / 100).toLocaleString()} / 100
                     </p>
                   </div>
+
+                  {selectedNode?.lensReputationScore != null && selectedNode.lensReputationScore.score && (
+                    <div>
+                      <p className="text-xs text-gray-400">Lens Reputation</p>
+                      <p className="text-base font-semibold text-white">
+                        {(selectedNode.lensReputationScore.score).toLocaleString()}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

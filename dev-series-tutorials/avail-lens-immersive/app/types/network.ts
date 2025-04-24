@@ -5,6 +5,8 @@ export interface FollowerNode {
   followers: number;
   following: number;
   lensScore: number;
+  posts: number; // Track post count
+  lensReputationScore?: LensReputationScore;
 }
 
 export interface FollowerLink {
@@ -25,5 +27,17 @@ export interface RawFollower {
   followers: number;
   following: number;
   lensScore: number;
+  posts: number; // Track post count
   address: string; // Keep address for internal use
-} 
+  lensReputationScore?: LensReputationScore;
+}
+
+export interface LensReputationScore {
+  minted: boolean;
+  nft: {
+    tokenId: number;
+    image: string;
+  };
+  score: number;
+  timestamp: number;
+};

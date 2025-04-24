@@ -1,35 +1,131 @@
 import { client } from "../types/lens";
+import { evmAddress, uri, dateTime } from '@lens-protocol/client';
+import { post } from '@lens-protocol/client/actions';
+import { StorageClient } from "@lens-chain/storage-client";
+import { handleOperationWith } from "@lens-protocol/client/ethers";
+import { BrowserProvider, chains } from "@lens-chain/sdk/ethers";
+import { Eip1193Provider } from "ethers";
+import {
+  image,
+  textOnly,
+  MediaImageMimeType,
+  MetadataLicenseType,
+} from "@lens-protocol/metadata";
+import { getWalletClient } from 'wagmi/actions';
+import { createWalletClient, custom } from 'viem';
 
 // Function to authenticate a user when they want to post
 export async function authenticateForPosting(
   walletAddress: string,
-  signMessage: (message: string) => Promise<string>
+  signMessage: (message: string) => Promise<string>,
+  lensProfileId?: string
 ) {
   try {
+    console.log("Starting Lens authentication process for wallet:", walletAddress);
+    
+    // Format the wallet address correctly for Lens
+    let formattedAddress;
+    try {
+      formattedAddress = evmAddress(walletAddress);
+      console.log("Address formatted for Lens:", formattedAddress);
+    } catch (formatError) {
+      console.error("Error formatting wallet address:", formatError);
+      return { 
+        success: false, 
+        error: new Error(`Invalid wallet address format: ${walletAddress}`) 
+      };
+    }
+    
     // Create a function that will sign messages
     const signMessageFn = async (message: string) => {
-      return await signMessage(message);
+      console.log("Signing message for authentication");
+      const signature = await signMessage(message);
+      console.log("Message signed successfully");
+      return signature;
     };
 
-    // Follow the example provided
-    const authenticated = await client.login({
-      accountOwner: {
-        account: walletAddress,
-        app: "0x8A5Cc31180c37078e1EbA2A23c861Acf351a97cE", // Mainnet Test App
-        owner: walletAddress,
-      },
-      signMessage: signMessageFn,
-    });
-
-    if (authenticated.isErr()) {
-      console.error('Authentication failed:', authenticated.error);
-      return { success: false, error: authenticated.error };
+    // If we have a Lens profile ID, use the account manager flow first
+    if (lensProfileId) {
+      console.log("Attempting authentication with account manager flow using profile ID:", lensProfileId);
+      try {
+        const authenticatedWithManager = await client.login({
+          accountOwner: {
+            account: lensProfileId, // Use the Lens profile ID
+            app: "0x8A5Cc31180c37078e1EbA2A23c861Acf351a97cE", // Mainnet Test App
+            owner: formattedAddress, // Use the wallet address as the manager
+          },
+          signMessage: signMessageFn,
+        });
+        
+        if (!authenticatedWithManager.isErr()) {
+          console.log("Authentication with account manager successful");
+          return { 
+            success: true, 
+            sessionClient: authenticatedWithManager.value 
+          };
+        }
+        
+        console.error('Account manager authentication failed:', authenticatedWithManager.error);
+      } catch (managerError) {
+        console.error("Error in account manager flow:", managerError);
+      }
     }
 
-    // Return the authenticated session client
+    // If account manager approach fails or no profile ID, try the account owner approach
+    console.log("Attempting authentication with account owner flow");
+    try {
+      const authenticated = await client.login({
+        accountOwner: {
+          account: formattedAddress,
+          app: "0x8A5Cc31180c37078e1EbA2A23c861Acf351a97cE", // Mainnet Test App
+          owner: formattedAddress,
+        },
+        signMessage: signMessageFn,
+      });
+      
+      if (!authenticated.isErr()) {
+        console.log("Authentication with account owner successful");
+        return { 
+          success: true, 
+          sessionClient: authenticated.value 
+        };
+      }
+      
+      console.error('Account owner authentication failed:', authenticated.error);
+    } catch (ownerError) {
+      console.error("Error in account owner flow:", ownerError);
+    }
+    
+    // If both approaches failed, try one more time with the account manager flow using the wallet address for both
+    if (!lensProfileId) {
+      console.log("Attempting fallback authentication with account manager using wallet address for both fields");
+      try {
+        const fallbackAuth = await client.login({
+          accountManager: {
+            account: formattedAddress, // Use wallet address as a fallback
+            app: "0x8A5Cc31180c37078e1EbA2A23c861Acf351a97cE", // Mainnet Test App
+            manager: formattedAddress,
+          },
+          signMessage: signMessageFn,
+        });
+        
+        if (!fallbackAuth.isErr()) {
+          console.log("Fallback authentication successful");
+          return { 
+            success: true, 
+            sessionClient: fallbackAuth.value 
+          };
+        }
+        
+        console.error('Fallback authentication failed:', fallbackAuth.error);
+      } catch (fallbackError) {
+        console.error("Error in fallback authentication:", fallbackError);
+      }
+    }
+
     return { 
-      success: true, 
-      sessionClient: authenticated.value 
+      success: false, 
+      error: new Error("Failed to authenticate with all available methods") 
     };
   } catch (error) {
     console.error('Error authenticating with Lens:', error);
@@ -44,47 +140,198 @@ export async function authenticateForPosting(
 export async function postToLens(
   sessionClient: any, 
   content: string,
-  imageUrl?: string
+  imageUrl?: string,
+  lensHandle?: string
 ) {
   try {
-    // Create the post parameters
-    const postParams: any = {
-      content,
-      contentFocus: imageUrl ? 'IMAGE' : 'TEXT',
-      locale: 'en',
-    };
-
-    // Add image if provided
-    if (imageUrl) {
-      postParams.image = {
-        url: imageUrl,
-        mimeType: 'image/png',
-        altTag: 'Network visualization from Lens Visualization Tool',
-      };
-    }
-
-    // Create the post using the session client
-    // The exact API will depend on the specific version of the Lens SDK
-    const result = await sessionClient.publication.post(postParams);
-
-    // Handle the result
-    if ('isErr' in result && result.isErr()) {
-      console.error('Error posting to Lens:', result.error);
-      return { 
-        success: false, 
-        error: result.error 
-      };
-    }
-
-    // Extract the transaction ID based on the SDK response structure
-    const txId = result.value?.id || 'transaction-id';
+    console.log("🚀 Starting post to Lens process");
+    console.log("📝 Content:", content);
+    console.log("🖼️ Image URL:", imageUrl);
     
-    return {
-      success: true,
-      txId
-    };
+    // Log sessionClient details (safely)
+    console.log("👤 Session client available:", !!sessionClient);
+    console.log("👤 Session client structure:", Object.keys(sessionClient));
+    
+    if (sessionClient?.authentication) {
+      console.log("🔐 Authentication type:", 
+        sessionClient.authentication.accountOwner ? "accountOwner" : 
+        sessionClient.authentication.accountManager ? "accountManager" : "unknown");
+    }
+    
+    // STEP 1: Create post metadata using the official Lens metadata helpers
+    console.log("📋 Step 1: Creating post metadata");
+    let metadata;
+    
+    if (imageUrl) {
+      // Use the lens handle provided directly, or fallback to extracting from content
+      const useLensHandle = lensHandle || content.match(/for\s+(lens\/\w+|@\w+)/i)?.[1]?.replace('@', '') || 'availproject';
+      const cleanHandle = useLensHandle.replace('lens/', '');
+      
+      // Determine the image URL to use
+      let publicImageUrl = imageUrl;
+      
+      // If the image URL is already a Grove URL or other http(s) URL, use it directly
+      if (!publicImageUrl.startsWith('http') && !publicImageUrl.startsWith('data:')) {
+        // Construct the public URL using the app's base URL for relative paths
+        const baseUrl = 'https://lenscollective.me';
+        publicImageUrl = `${baseUrl}/${publicImageUrl}`;
+      }
+      
+      console.log("💡 Using image URL:", publicImageUrl);
+      
+      // For data URLs, we need to upload them to Grove first
+      if (publicImageUrl.startsWith('data:')) {
+        try {
+          console.log("📤 Converting data URL to Grove Storage URL...");
+          
+          // Extract base64 data and create a File for Grove
+          const base64Data = publicImageUrl.replace(/^data:image\/\w+;base64,/, '');
+          const buffer = Buffer.from(base64Data, 'base64');
+          const file = new File([buffer], `${cleanHandle}_social_card.png`, { type: 'image/png' });
+          
+          // Upload directly to Grove
+          const storageClient = StorageClient.create();
+          const result = await storageClient.uploadFile(file);
+          const { gatewayUrl } = result;
+          
+          console.log("🔗 Image uploaded to Grove:", gatewayUrl);
+          publicImageUrl = gatewayUrl;
+        } catch (uploadError) {
+          console.error("⚠️ Failed to upload image data URL to Grove:", uploadError);
+          // Continue with the data URL as fallback
+        }
+      }
+      
+      // Create metadata that conforms to the Lens schema
+      metadata = {
+        "$schema": "https://json-schemas.lens.dev/posts/image/3.0.0.json",
+        "lens": {
+          "id": crypto.randomUUID(),
+          "locale": "en",
+          "mainContentFocus": "IMAGE",
+          "content": content,
+          "image": {
+            "item": publicImageUrl,
+            "type": MediaImageMimeType.PNG,
+            "altTag": "Network visualization from Lens Visualization Tool by Avail Project",
+          },
+          "tags": ["visualization", "network", "avail"]
+        },
+        "name": "Lens Visualization by Avail Project",
+        "description": content
+      };
+      
+      console.log("📊 Simplified metadata:", JSON.stringify(metadata, null, 2));
+    } else {
+      // Simple text-only metadata
+      metadata = {
+        "$schema": "https://json-schemas.lens.dev/posts/text-only/3.0.0.json",
+        "lens": {
+          "id": crypto.randomUUID(),
+          "content": content,
+          "locale": "en",
+          "mainContentFocus": "TEXT_ONLY"
+        }
+      };
+    }
+    
+    console.log("📊 Created metadata:", JSON.stringify(metadata, null, 2));
+    
+    // STEP 2: Upload metadata to get a contentUri using StorageClient
+    console.log("📤 Step 2: Uploading metadata using StorageClient");
+    
+    // Create a storage client instance
+    const storageClient = StorageClient.create();
+    console.log("🗂️ Storage client created");
+
+    // Extract authentication info if available
+    let profileId = null;
+    if (sessionClient.authentication?.accountOwner?.account) {
+      profileId = sessionClient.authentication.accountOwner.account;
+      console.log("👤 Using profile ID for storage:", profileId);
+    } else if (sessionClient.authentication?.accountManager?.account) {
+      profileId = sessionClient.authentication.accountManager.account;
+      console.log("👤 Using profile ID for storage:", profileId);
+    }
+    
+    // Upload the metadata
+    console.log("📤 Uploading metadata...");
+    const { uri: contentURI } = await storageClient.uploadAsJson(metadata);
+    console.log("🔗 Metadata uploaded, received contentURI:", contentURI);
+    
+    if (!contentURI) {
+      throw new Error("Failed to upload metadata: No contentURI returned");
+    }
+    
+    // STEP 3: Create the post with the contentUri using the post action
+    console.log("📝 Step 3: Creating post with contentURI");
+    console.log("🔄 Using @lens-protocol/client/actions post method");
+    
+    try {
+      // Create a contentURI param with the uri function
+      const contentUriParam = uri(contentURI);
+      console.log("📝 Content URI param created:", contentUriParam);
+
+      // Initialize ethers provider and signer
+      console.log("Initializing ethers provider");
+      
+      // Try to use window.ethereum, will work with MetaMask and many other wallets
+      if (typeof window !== 'undefined' && window.ethereum) {
+        const provider = new BrowserProvider(window.ethereum as Eip1193Provider);
+        console.log("Provider created:", !!provider);
+        
+        const signer = await provider.getSigner();
+        console.log("Signer created:", !!signer);
+        console.log("Signer address:", await signer.getAddress());
+        
+        // Use the post action with ethers signer
+        console.log("🔄 Calling post method with ethers signer...");
+        
+        console.log("💼 Preparing to handle post operation");
+        const result = await post(sessionClient, { 
+          contentUri: contentUriParam,
+          actions: [
+            {
+              simpleCollect: {
+                isImmutable: true,
+                collectLimit: 100,
+                endsAt: dateTime("2032-12-22T00:00:00Z")
+              }
+            }
+          ]
+
+         })
+          .andThen(handleOperationWith(signer))  
+          .andThen(sessionClient.waitForTransaction);
+
+        
+        console.log("📨 Post result:", result);
+        
+        // Success - if we got here, the post was successful
+        console.log("🎉 Post created successfully!");
+        return {
+          success: true,
+          txId: result.isOk() ? result.value || 'transaction-id' : 'transaction-failed'
+        };
+      } else {
+        throw new Error("No Ethereum provider available. Please use a Web3 compatible browser or wallet.");
+      }
+    } catch (postError) {
+      console.error("❌ Error using post action:", postError);
+      console.error("Error details:", JSON.stringify(postError, null, 2));
+      throw postError; // Rethrow to handle in the calling function
+    }
+    
   } catch (error) {
-    console.error('Error posting to Lens:', error);
+    console.error('❌ Unhandled error posting to Lens:', error);
+    // Additional error details
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    } else {
+      console.error('Unknown error type:', typeof error);
+    }
     return { 
       success: false, 
       error 

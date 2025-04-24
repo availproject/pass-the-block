@@ -1,7 +1,5 @@
 import { ApolloClient, InMemoryCache, gql } from '@apollo/client';
-import { RawFollower } from '../types/network';
-import { evmAddress, PublicClient, mainnet  } from '@lens-protocol/client';
-import { fetchAccountsAvailable, follow } from '@lens-protocol/client/actions';
+import { LensReputationScore, RawFollower } from '../types/network';
 
 // Initialize Apollo Client
 const apolloClient = new ApolloClient({
@@ -27,6 +25,7 @@ query AccountStats($accountStatsRequest: AccountStatsRequest!, $accountRequest: 
   }
   account(request: $accountRequest) {
     address
+    owner
     username {
       id
       localName
@@ -76,6 +75,10 @@ query Followers($request: FollowersRequest!) {
         }
         score
       }
+    }
+    pageInfo {
+      next
+      prev
     }
   }
 }
@@ -143,11 +146,47 @@ const GET_ACCOUNTS_BULK = gql`
   }
 `;
 
-// New public client for modern Lens API interactions
-export const publicClient = PublicClient.create({
-  environment: mainnet,
-  origin: typeof window !== 'undefined' ? window.location.origin : 'lenscollective.me',
-});
+// Add the new accountsAvailable query
+const ACCOUNTS_AVAILABLE = gql`
+  query AccountsAvailable($request: AccountsAvailableRequest!) {
+    accountsAvailable(request: $request) {
+      items {
+        ... on AccountManaged {
+          account {
+            address
+            username {
+              value
+            }
+            metadata {
+              name
+              picture
+            }
+          }
+          permissions {
+            canExecuteTransactions
+            canTransferTokens
+            canTransferNative
+            canSetMetadataUri
+          }
+          addedAt
+        }
+        ... on AccountOwned {
+          account {
+            address
+            username {
+              value
+            }
+            metadata {
+              name
+              picture
+            }
+          }
+          addedAt
+        }
+      }
+    }
+  }
+`;
 
 interface FollowerItem {
   follower: {
@@ -197,23 +236,31 @@ export async function getAccountMetadata(lensHandle: string): Promise<RawFollowe
       hasStats: !!result.data?.accountStats
     });
 
+    const owner = result.data.account.owner;
+    const lensAccountAddress = result.data.account.address;
+    const lensReputationScore = await fetchLensReputationScore(owner, lensAccountAddress);
+
     const { account, accountStats } = result.data;
 
     const followerData = {
       id: account.address,
-      name: `lens/${account.username.localName}`,
-      picture: account.metadata?.picture || 'default_profile.png',
+      name: account.username.localName,
+      picture: account.metadata?.picture || 'default_image.png',
       followers: accountStats.graphFollowStats.followers,
       following: accountStats.graphFollowStats.following,
+      posts: accountStats.feedStats.posts,
       lensScore: account.score,
-      address: account.address // Store address for API calls
+      address: account.address, // Store address for API calls
+      lensReputationScore
     };
 
     console.log('✅ Account metadata processed:', {
       id: followerData.id,
       name: followerData.name,
       followers: followerData.followers,
-      address: followerData.address
+      posts: followerData.posts,
+      address: followerData.address,
+      lensReputationScore
     });
 
     return followerData;
@@ -254,10 +301,22 @@ export async function getFollowerDetails(accountAddress: string, limit: number =
   try {
     let allFollowers: RawFollower[] = [];
     let cursor: string | null = null;
-    let hasMore = true;
+    let batchCount = 0;
+    const maxBatches = 2;
 
-    while (hasMore && allFollowers.length < limit) {
-      const result: { data: { followers: { items: FollowerItem[]; pageInfo: { nextCursor: string | null } } } } = await apolloClient.query({
+    while (batchCount < maxBatches) {
+      console.log('🔄 Current cursor:', cursor);
+      
+      const result: { 
+        data?: { 
+          followers?: { 
+            items: FollowerItem[]; 
+            pageInfo?: { 
+              next: string | null 
+            } 
+          } 
+        } 
+      } = await apolloClient.query({
         query: GET_FOLLOWER_DETAILS,
         variables: {
           request: {
@@ -268,67 +327,53 @@ export async function getFollowerDetails(accountAddress: string, limit: number =
         }
       });
 
-      console.log('📊 Follower details query result:', {
-        hasData: !!result.data,
-        hasFollowers: !!result.data?.followers,
-        followerCount: result.data?.followers?.items?.length || 0,
-        currentTotal: allFollowers.length
-      });
+      const followerItems = result.data?.followers?.items || [];
+      if (!followerItems.length) break;
 
-      const followerItems = result.data.followers.items;
-      const batchSize = 25;
-      const followerData: RawFollower[] = [];
+      console.log(`📊 Processing batch ${batchCount + 1}, followers found:`, followerItems.length);
 
-      // Process followers in batches of 25
-      for (let i = 0; i < followerItems.length; i += batchSize) {
-        const batch = followerItems.slice(i, i + batchSize);
-        console.log(`🔄 Processing batch ${i / batchSize + 1} of ${Math.ceil(followerItems.length / batchSize)}`);
-
-        // Process each follower in the batch
-        const batchPromises = batch.map(async (item: FollowerItem) => {
-          const follower = item.follower;
-          const statsResult = await apolloClient.query({
-            query: ACCOUNT_STATS,
-            variables: {
-              request: {
-                username: {
-                  localName: follower.username.localName
-                }
+      // Process followers in current batch
+      const followerPromises = followerItems.map(async (item: FollowerItem) => {
+        const follower = item.follower;
+        const statsResult = await apolloClient.query({
+          query: ACCOUNT_STATS,
+          variables: {
+            request: {
+              username: {
+                localName: follower.username.localName
               }
             }
-          });
-
-          return {
-            id: follower.address,
-            name: `lens/${follower.username.localName}`,
-            picture: follower.metadata?.picture || "default_profile.png",
-            followers: statsResult.data.accountStats.graphFollowStats.followers,
-            following: statsResult.data.accountStats.graphFollowStats.following,
-            lensScore: follower.score,
-            address: follower.address
-          };
+          }
         });
 
-        // Wait for all promises in the batch to complete
-        const batchResults = await Promise.all(batchPromises);
-        followerData.push(...batchResults);
-      }
+        return {
+          id: follower.address,
+          name: follower.username.localName,
+          picture: follower.metadata?.picture || "default_image.png",
+          followers: statsResult.data.accountStats.graphFollowStats.followers,
+          following: statsResult.data.accountStats.graphFollowStats.following,
+          posts: statsResult.data.accountStats.feedStats.posts,
+          lensScore: follower.score,
+          address: follower.address
+        };
+      });
 
-      allFollowers.push(...followerData);
+      const batchFollowers = await Promise.all(followerPromises);
+      allFollowers.push(...batchFollowers);
 
-      // Check if we have more followers to fetch
-      hasMore = result.data?.followers?.pageInfo?.nextCursor !== null;
-      cursor = result.data?.followers?.pageInfo?.nextCursor;
+      batchCount++;
+      if (batchCount >= maxBatches) break;
 
-      // Stop if we've reached our limit
-      if (allFollowers.length >= limit) {
-        allFollowers = allFollowers.slice(0, limit);
-        break;
-      }
+      const nextCursor = result.data?.followers?.pageInfo?.next;
+      console.log('📑 Next cursor:', nextCursor);
+      
+      cursor = nextCursor ?? null;
+      if (!cursor) break;
     }
 
     console.log('✅ All followers processed:', {
-      totalFollowers: allFollowers.length
+      totalFollowers: allFollowers.length,
+      batchesProcessed: batchCount
     });
 
     return allFollowers;
@@ -357,49 +402,58 @@ export async function fetchAccountByAddress(address: string) {
     const formattedAddress = address.toLowerCase();
     console.log('🔍 Fetching account for address:', formattedAddress);
     
-    // Use Apollo to fetch accounts by address
-    console.log('📡 Making GraphQL request...');
+    // Use Apollo to fetch accounts by address using the new accountsAvailable query
+    console.log('📡 Making GraphQL request with accountsAvailable...');
     const result = await apolloClient.query({
-      query: GET_ACCOUNTS_BULK,
+      query: ACCOUNTS_AVAILABLE,
       variables: {
         request: {
-          addresses: [formattedAddress]
+          managedBy: formattedAddress,
+          includeOwned: true
         }
       }
     });
     
     console.log('📊 GraphQL response:', {
       hasData: !!result.data,
-      hasAccountsBulk: !!result.data?.accountsBulk,
-      accountsCount: result.data?.accountsBulk?.length || 0,
+      hasAccountsAvailable: !!result.data?.accountsAvailable,
+      itemsCount: result.data?.accountsAvailable?.items?.length || 0,
       rawResponse: result.data
     });
     
-    const accounts = result.data?.accountsBulk || [];
+    const items = result.data?.accountsAvailable?.items || [];
     
     // If we found accounts, return the first one
-    if (accounts.length > 0) {
-      const account = accounts[0];
-      console.log('✅ Found account:', {
-        address: account.address,
-        username: account.username,
-        metadata: account.metadata
-      });
+    if (items.length > 0) {
+      // Get the first account (prefer owned accounts if available)
+      const ownedAccount = items.find((item: any) => 'account' in item && !('permissions' in item));
+      const managedAccount = items.find((item: any) => 'account' in item && 'permissions' in item);
       
-      // Format the handle properly
-      const handle = account.username?.value 
-        ? {
-            fullHandle: account.username.value,
-            localName: account.username.localName || account.username.value.replace('lens/', '')
-          }
-        : null;
+      const accountItem = ownedAccount || managedAccount || items[0];
+      const account = 'account' in accountItem ? accountItem.account : null;
+      
+      if (account) {
+        console.log('✅ Found account:', {
+          address: account.address,
+          username: account.username,
+          metadata: account.metadata
+        });
+        
+        // Format the handle properly
+        const handle = account.username?.value 
+          ? {
+              fullHandle: account.username.value.replace('lens/', ''),
+              localName: account.username.value.replace('lens/', '')
+            }
+          : null;
 
-      return {
-        id: account.address,
-        handle,
-        metadata: account.metadata || null,
-        address: account.address
-      };
+        return {
+          id: account.address,
+          handle,
+          metadata: account.metadata || null,
+          address: account.address
+        };
+      }
     }
     
     console.log('⚠️ No accounts found for address:', formattedAddress);
@@ -411,6 +465,29 @@ export async function fetchAccountByAddress(address: string) {
     });
     return null;
   }
+}
+
+/**
+ * Fetches the LensReputationScore from the public LensReputation API.
+ * 
+ * @param owner - The wallet address of the Lens profile owner.
+ * @param lensAccountAddress - The Lens profile address.
+ * @returns A Promise that resolves to a LensReputationScore object if available, or undefined if not found or on error.
+ */
+async function fetchLensReputationScore(owner: string, lensAccountAddress: string): Promise<LensReputationScore | undefined> {
+  try {
+    const response = await fetch(
+      `https://lensreputation.xyz/api/public/sbt?wallet=${owner}&lensAccountAddress=${lensAccountAddress}`
+    );
+    if (response.ok) {
+      const data: LensReputationScore = await response.json();
+      console.log('📈 LensReputation score found:', data);
+      return data;
+    }
+  } catch (err) {
+    console.warn('Error while fetching LensReputation score:', err);
+  }
+  return undefined;
 }
 
 /**

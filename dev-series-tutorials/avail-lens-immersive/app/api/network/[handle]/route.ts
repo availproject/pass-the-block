@@ -22,7 +22,7 @@ export async function GET(
       handle,
       getAccountMetadata,
       getFollowerDetails,
-      200
+      75
     );
 
     console.log('✅ Network built successfully:', {

@@ -17,6 +17,10 @@ interface Node {
   label: string;
   color?: string;
   picture?: string;
+  followers?: number;
+  following?: number;
+  lensScore?: number;
+  posts?: number;
 }
 
 interface Edge {
@@ -33,6 +37,10 @@ interface NetworkGraphProps {
   currentNetwork?: string;
   onNetworkSwitch?: (network: string) => void;
   isScreenshot?: boolean;
+  screenshotMode?: boolean;
+  hideUI?: boolean;
+  captureZoom?: number;
+  isCaptureComponent?: boolean;
 }
 
 // Camera animation component
@@ -67,9 +75,9 @@ const CameraAnimation = ({
       // Calculate distance to target to adjust animation duration
       const distance = new THREE.Vector3(...targetPosition).distanceTo(startPosition.current);
       
-      // Longer duration for smoother animation
-      const baseDuration = 2.5;
-      const distanceBasedDuration = Math.min(baseDuration + (distance / 150), 3.5); // Cap at 3.5 seconds
+      // Shorter duration for screenshot mode
+      const baseDuration = isScreenshot ? 1.5 : 2.5;
+      const distanceBasedDuration = Math.min(baseDuration + (distance / 150), isScreenshot ? 2.0 : 3.5);
       
       const duration = distanceBasedDuration;
       const progress = Math.min(elapsedTime / duration, 1);
@@ -83,7 +91,7 @@ const CameraAnimation = ({
       // Use different offsets based on whether it's a double-click, screenshot, or search
       let offset;
       if (isScreenshot) {
-        offset = new THREE.Vector3(0, 0, 80); // Fixed offset for screenshot
+        offset = new THREE.Vector3(0, 0, 100); // Increased distance for screenshot to show more of the network
       } else if (isDoubleClick) {
         offset = new THREE.Vector3(0, 0, 20); // Front view for double-click
       } else {
@@ -135,7 +143,7 @@ const CameraAnimation = ({
 const EdgeLine = ({ 
   start, 
   end, 
-  opacity = 0.2 
+  opacity = 1 
 }: { 
   start: [number, number, number]; 
   end: [number, number, number];
@@ -186,10 +194,14 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
   networks = [],
   currentNetwork = '',
   onNetworkSwitch,
-  isScreenshot = false
+  isScreenshot = false,
+  screenshotMode = false,
+  hideUI = false,
+  captureZoom = 75,
+  isCaptureComponent = false
 }) => {
   // Find the target node's ID
-  const targetNodeId = nodes.find(node => 
+  const initialTargetNodeId = nodes.find(node => 
     targetHandle ? 
       node.label.toLowerCase() === targetHandle.toLowerCase() :
       null
@@ -205,7 +217,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
   // Find all directly connected node IDs to the target handle
   const connectedNodeIds = new Set(
     links
-      .filter(edge => edge.source === targetNodeId || edge.target === targetNodeId)
+      .filter(edge => edge.source === initialTargetNodeId || edge.target === initialTargetNodeId)
       .flatMap(edge => [edge.source, edge.target])
   );
 
@@ -304,7 +316,10 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
   const handleNodeDoubleClick = (label: string) => {
     setIsFromDoubleClick(true);
     window.dispatchEvent(new CustomEvent('updateTargetHandle', { 
-      detail: { handle: label.toLowerCase(), isDoubleClick: true } 
+      detail: { 
+        handle: label.toLowerCase(), 
+        isDoubleClick: true 
+      } 
     }));
   };
 
@@ -398,43 +413,41 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
       controlsRef.current.update();
     }
   };
-  
-  const panCamera = (x: number, y: number) => {
-    if (controlsRef.current) {
-      // Get the camera and calculate the proper pan direction vectors based on camera orientation
-      const camera = controlsRef.current.object;
-      
-      // Calculate pan speed based on camera distance
-      const distance = camera.position.distanceTo(controlsRef.current.target);
-      const panSpeed = distance / 100; // Adjust sensitivity
-      
-      // Right vector (for x movement)
-      const right = new THREE.Vector3();
-      right.setFromMatrixColumn(camera.matrix, 0);
-      right.normalize();
-      
-      // Up vector (for y movement)
-      const up = new THREE.Vector3(0, 1, 0);
-      
-      // Move in the right direction for x
-      const moveX = right.multiplyScalar(x * panSpeed);
-      // Move in the up direction for y
-      const moveY = up.multiplyScalar(y * panSpeed);
-      
-      // Apply the movement to both camera and target
-      camera.position.add(moveX).add(moveY);
-      controlsRef.current.target.add(moveX).add(moveY);
-      
-      // Update the controls
-      controlsRef.current.update();
-    }
-  };
 
   // Listen for camera control events from Dashboard
   useEffect(() => {
-    const handleResetCamera = () => resetCamera();
-    const handleZoomIn = () => zoomIn();
-    const handleZoomOut = () => zoomOut();
+    const handleResetCamera = (event: Event) => {
+      // Check if this is a scoped event for a capture component
+      const customEvent = event as CustomEvent;
+      const isCaptureEvent = customEvent.detail?.isCaptureMode;
+      
+      // Only proceed if this is not a capture event or if this component is a capture component
+      if (!isCaptureEvent || isCaptureComponent) {
+        resetCamera();
+      }
+    };
+    
+    const handleZoomIn = (event: Event) => {
+      // Check if this is a scoped event for a capture component
+      const customEvent = event as CustomEvent;
+      const isCaptureEvent = customEvent.detail?.isCaptureMode;
+      
+      // Only proceed if this is not a capture event or if this component is a capture component
+      if (!isCaptureEvent || isCaptureComponent) {
+        zoomIn();
+      }
+    };
+    
+    const handleZoomOut = (event: Event) => {
+      // Check if this is a scoped event for a capture component
+      const customEvent = event as CustomEvent;
+      const isCaptureEvent = customEvent.detail?.isCaptureMode;
+      
+      // Only proceed if this is not a capture event or if this component is a capture component
+      if (!isCaptureEvent || isCaptureComponent) {
+        zoomOut();
+      }
+    };
     
     window.addEventListener('resetCamera', handleResetCamera);
     window.addEventListener('zoomIn', handleZoomIn);
@@ -445,7 +458,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
       window.removeEventListener('zoomIn', handleZoomIn);
       window.removeEventListener('zoomOut', handleZoomOut);
     };
-  }, []);
+  }, [isCaptureComponent]);
 
   // Listen for autoRotate and rotateSpeed changes from Dashboard
   useEffect(() => {
@@ -466,14 +479,51 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
     };
   }, []);
 
+  // At the beginning of the component's render, add the screenshot related state
+  const [screenshotPosition, setScreenshotPosition] = useState<[number, number, number] | null>(null);
+  const [screenshotNodeId, setScreenshotNodeId] = useState<string | null>(null);
+  const [isDoubleClick, setIsDoubleClick] = useState(false);
+  const [isAutoRotate, setIsAutoRotate] = useState(true);
+  const [ensureRender, setEnsureRender] = useState(false);
+
+  // Also add a useEffect to listen for screenshot mode events
+  useEffect(() => {
+    // Listen for explicit screenshot capture requests
+    const handleScreenshotRequest = (event: CustomEvent<{ handle: string | null, isCaptureMode?: boolean }>) => {
+      const nodeLabel = event.detail.handle;
+      const isCaptureEvent = event.detail.isCaptureMode;
+      
+      // Only proceed if this is not a capture event or if this component is a capture component
+      if ((!isCaptureEvent || isCaptureComponent) && nodeLabel) {
+        console.log("Screenshot request for node:", nodeLabel);
+        
+        // Find the target node
+        const targetNode = spacedNodes.find(
+          n => n.label?.toLowerCase() === nodeLabel.toLowerCase()
+        );
+        
+        if (targetNode) {
+          console.log("Setting screenshot position", targetNode.position);
+          setScreenshotPosition(targetNode.position);
+          setScreenshotNodeId(targetNode.id);
+        }
+      }
+    };
+
+    window.addEventListener('screenshotRequest', handleScreenshotRequest as EventListener);
+    return () => {
+      window.removeEventListener('screenshotRequest', handleScreenshotRequest as EventListener);
+    };
+  }, [spacedNodes, isCaptureComponent]);
+
   return (
     <div id="network-graph" className="w-full h-full">
       <Canvas
         camera={{ 
-          position: [5, 5, 80],
-          fov: isScreenshot ? 45 : 60,
+          position: isScreenshot ? [5, 5, captureZoom] : [5, 5, 75], // Use captureZoom for screenshot mode
+          fov: isScreenshot ? 50 : 60, // Lower FOV for screenshot to reduce distortion
           near: 0.1,
-          far: 3000
+          far: 5000 // Increased far plane for larger networks
         }}
         style={{ background: '#000', display: 'block', width: '100%', height: '100%' }}
         shadows
@@ -494,14 +544,25 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
           intensity={0.3}
         />
 
-        {/* Camera animation controller */}
+        {/* Camera animation for regular view */}
         {targetHandle && (
           <CameraAnimation 
             targetPosition={spacedNodes.find(n => n.label.toLowerCase() === targetHandle.toLowerCase())?.position || [5, 5, 55]}
             targetHandle={targetHandle}
             isDoubleClick={isFromDoubleClick}
             onAnimationComplete={handleAnimationComplete}
-            isScreenshot={isScreenshot}
+            isScreenshot={false}
+          />
+        )}
+
+        {/* Camera animation for screenshot mode */}
+        {isScreenshot && screenshotNodeId && screenshotPosition && (
+          <CameraAnimation
+            targetPosition={screenshotPosition}
+            targetHandle={screenshotNodeId}
+            isDoubleClick={false}
+            onAnimationComplete={() => {}}
+            isScreenshot={true}
           />
         )}
 
@@ -513,14 +574,14 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
           if (!sourceNode || !targetNode) return null;
           
           // Set edge opacity based on whether it connects to target node
-          const isConnectedToTarget = edge.source === targetNodeId || edge.target === targetNodeId;
+          const isConnectedToTarget = edge.source === initialTargetNodeId || edge.target === initialTargetNodeId;
           
           return (
             <EdgeLine
               key={`edge-${index}`}
               start={sourceNode.position}
               end={targetNode.position}
-              opacity={isConnectedToTarget ? 0.3 : 0.3}
+              opacity={isConnectedToTarget ? 0.7 : 0.7}
             />
           );
         })}
@@ -553,7 +614,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
           enableRotate={true}
           autoRotate={autoRotate}
           autoRotateSpeed={rotateSpeed * 3} // Scale the speed properly
-          maxDistance={200}
+          maxDistance={1000} // Increased max distance
           minDistance={10}
           enableDamping={true}
           dampingFactor={0.05}

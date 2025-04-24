@@ -1,53 +1,38 @@
-import { graphql } from "@lens-protocol/client";
-import { MediaImageFragment } from "./images";
+import {
+  ArticleMetadataFragment,
+  AudioMetadataFragment,
+  TextOnlyMetadataFragment,
+  ImageMetadataFragment,
+  VideoMetadataFragment,
+  graphql,
+} from "@lens-protocol/client";
 
 export const PostMetadataFragment = graphql(
   `
     fragment PostMetadata on PostMetadata {
-      content
-      contentWarning
-      tags
-      locale
-      mainContentFocus
-      image {
-        ...MediaImage
+      __typename
+      ... on ArticleMetadata {
+        ...ArticleMetadata
+      }
+      ... on AudioMetadata {
+        ...AudioMetadata
+      }
+      ... on TextOnlyMetadata {
+        ...TextOnlyMetadata
+      }
+      ... on ImageMetadata {
+        ...ImageMetadata
+      }
+      ... on VideoMetadata {
+        ...VideoMetadata
       }
     }
   `,
-  [MediaImageFragment]
+  [
+    ArticleMetadataFragment,
+    AudioMetadataFragment,
+    TextOnlyMetadataFragment,
+    ImageMetadataFragment,
+    VideoMetadataFragment,
+  ]
 );
-
-export const PostFragment = graphql(
-  `
-    fragment Post on Post {
-      id
-      createdAt
-      by {
-        id
-        handle {
-          fullHandle
-          localName
-        }
-        metadata {
-          picture {
-            ... on ImageSet {
-              optimized {
-                uri
-              }
-            }
-          }
-        }
-      }
-      stats {
-        reactions
-        comments
-        mirrors
-        quotes
-      }
-      metadata {
-        ...PostMetadata
-      }
-    }
-  `,
-  [PostMetadataFragment]
-); 
