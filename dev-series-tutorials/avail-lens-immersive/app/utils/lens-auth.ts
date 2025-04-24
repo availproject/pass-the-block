@@ -1,5 +1,5 @@
 import { client } from "../types/lens";
-import { evmAddress, uri } from '@lens-protocol/client';
+import { evmAddress, uri, dateTime } from '@lens-protocol/client';
 import { post } from '@lens-protocol/client/actions';
 import { StorageClient } from "@lens-chain/storage-client";
 import { handleOperationWith } from "@lens-protocol/client/ethers";
@@ -293,7 +293,9 @@ export async function postToLens(
           actions: [
             {
               simpleCollect: {
-                isImmutable: true
+                isImmutable: true,
+                collectLimit: 100,
+                endsAt: dateTime("2032-12-22T00:00:00Z")
               }
             }
           ]
