@@ -288,7 +288,17 @@ export async function postToLens(
         console.log("🔄 Calling post method with ethers signer...");
         
         console.log("💼 Preparing to handle post operation");
-        const result = await post(sessionClient, { contentUri: contentUriParam })
+        const result = await post(sessionClient, { 
+          contentUri: contentUriParam,
+          actions: [
+            {
+              simpleCollect: {
+                isImmutable: true
+              }
+            }
+          ]
+
+         })
           .andThen(handleOperationWith(signer))  
           .andThen(sessionClient.waitForTransaction);
 

@@ -83,22 +83,29 @@ export default function SocialCardModal({
   }, [isOpen, isMounted, onCardCapture, graphImageUrl]);
 
   const handleDownload = async () => {
-    if (!cardRef.current) return;
-    
-    try {
-      const canvas = await html2canvas(cardRef.current, {
-        scale: 2,
-        logging: false,
-        useCORS: true,
-      });
-      const link = document.createElement('a');
-      link.download = `${lensHandle}_social_card.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    } catch (error) {
-      console.error('Error generating image:', error);
-    }
-  };
+  if (!cardRef.current) return;
+
+  // Find the button inside cardRef and hide it
+  const button = cardRef.current.querySelector('button');
+  if (button) button.style.display = 'none';
+
+  try {
+    const canvas = await html2canvas(cardRef.current, {
+      scale: 2,
+      logging: false,
+      useCORS: true,
+    });
+    const link = document.createElement('a');
+    link.download = `${lensHandle}_social_card.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  } catch (error) {
+    console.error('Error generating image:', error);
+  } finally {
+    // Restore the button after capture
+    if (button) button.style.display = '';
+  }
+};
 
   // Handle backdrop click - close modal when clicking outside the card
   const handleBackdropClick = (e: React.MouseEvent) => {
@@ -140,6 +147,15 @@ export default function SocialCardModal({
       onClick={handleBackdropClick}
     >
       <div className="relative w-full max-w-4xl">
+        {/* Button to download image */}
+        <div className="flex justify-end mb-2">
+                <button
+                  onClick={handleDownload}
+                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-[#6C63FF] to-[#48C9B0] text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200"
+                >
+                  Download Image
+                </button>
+              </div>
         {/* Social Card Container */}
         <div className="bg-[#1E2129] rounded-xl overflow-hidden border border-[#3A3E48] shadow-xl relative w-full">
           {/* Close Button - Now inside the card */}
@@ -230,28 +246,30 @@ export default function SocialCardModal({
               </div>
             </div>
 
-            {/* Graph Section */}
-            <div className="flex-1 bg-[#1E2129] flex items-center justify-center p-4 md:h-full overflow-hidden">
-              {graphImageUrl ? (
-                <div className="relative w-full h-full flex items-center justify-center rounded-xl bg-black">
-                  <img 
-                    src={graphImageUrl.startsWith('data:') ? graphImageUrl : `/images/${graphImageUrl}`} 
-                    alt="Social Graph" 
-                    className="max-w-full max-h-full object-contain"
-                    style={{ 
-                      background: 'transparent',
-                      boxShadow: '0 0 20px rgba(0, 0, 0, 0.3)'
-                    }}
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = '/default_image.png';
-                    }}
-                  />
-                </div>
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <div className="text-[#8A8F9D] text-xl animate-pulse">Loading visualization...</div>
-                </div>
-              )}
+           {/* Graph Section */}
+              <div className="flex-1 bg-[#1E2129] flex items-center justify-center p-4 md:h-full overflow-hidden">
+                {graphImageUrl ? (
+                  <div className="relative w-full h-full flex items-center justify-center rounded-xl bg-black">
+                    <div className="flex items-center justify-center w-full h-full">
+                      <img 
+                        src={graphImageUrl.startsWith('data:') ? graphImageUrl : `/images/${graphImageUrl}`} 
+                        alt="Social Graph" 
+                        className="max-w-full max-h-full object-contain"
+                        style={{ 
+                          background: 'transparent',
+                          boxShadow: '0 0 20px rgba(0, 0, 0, 0.3)',
+                        }}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = '/default_image.png';
+                        }}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <div className="text-[#8A8F9D] text-xl animate-pulse">Loading visualization...</div>
+                  </div>
+                )}
             </div>
           </div>
         </div>

@@ -143,7 +143,7 @@ const CameraAnimation = ({
 const EdgeLine = ({ 
   start, 
   end, 
-  opacity = 0.2 
+  opacity = 1 
 }: { 
   start: [number, number, number]; 
   end: [number, number, number];
@@ -581,7 +581,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
               key={`edge-${index}`}
               start={sourceNode.position}
               end={targetNode.position}
-              opacity={isConnectedToTarget ? 0.3 : 0.3}
+              opacity={isConnectedToTarget ? 0.7 : 0.7}
             />
           );
         })}
