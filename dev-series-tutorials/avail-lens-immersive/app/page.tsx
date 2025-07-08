@@ -15,6 +15,8 @@ import toast from 'react-hot-toast';
 import { uploadImageToGrove } from './utils/grove-storage';
 import ReactDOM from 'react-dom/client';
 import { LensReputationScore } from './types/network';
+import { initializeNexusSDK, getUnifiedBalances, bridgeTokens, transferTokens } from './lib/nexus';
+import BridgeTokens from './components/BridgeTokens';
 
 
 export default function Home() {
@@ -50,6 +52,8 @@ export default function Home() {
     lensScore: number;
     lensReputationScore?: LensReputationScore | undefined;
   } | null>(null);
+  const [nexusBalances, setNexusBalances] = useState<any[]>([]);
+  const [isNexusLoading, setIsNexusLoading] = useState(false);
   
   // Get the ordered list of networks
   const orderedNetworks = useMemo(() => {
@@ -166,6 +170,23 @@ export default function Home() {
       setProfileHandle(handle);
     }
   }, [connected, lensAccount]);
+
+  // Initialize Nexus SDK when wallet connects
+  useEffect(() => {
+    if (connected && walletClient) {
+      const initNexus = async () => {
+        try {
+          await initializeNexusSDK(walletClient);
+          // Load initial balances
+          const balances = await getUnifiedBalances();
+          setNexusBalances(balances);
+        } catch (error) {
+          console.error('Failed to initialize Nexus SDK:', error);
+        }
+      };
+      initNexus();
+    }
+  }, [connected, walletClient]);
 
   const handleSearch = async () => {
     setIsVisualizeLoading(true);
@@ -597,6 +618,44 @@ export default function Home() {
     );
   };
 
+  // Add Nexus balances display to your UI
+  const renderNexusBalances = () => {
+    if (!connected) return null;
+
+    return (
+      <div className="mt-4 p-4 bg-gray-800 rounded-lg">
+        <h3 className="text-lg font-semibold mb-2">Nexus Balances</h3>
+        {isNexusLoading ? (
+          <div className="flex items-center justify-center">
+            <Spinner />
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {nexusBalances.map((balance, index) => (
+              <div key={index} className="flex justify-between items-center">
+                <span>{balance.symbol}</span>
+                <span>{balance.balance}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Add refresh balances function
+  const refreshBalances = async () => {
+    try {
+      setIsNexusLoading(true);
+      const balances = await getUnifiedBalances();
+      setNexusBalances(balances);
+    } catch (error) {
+      console.error('Failed to refresh balances:', error);
+    } finally {
+      setIsNexusLoading(false);
+    }
+  };
+
   return (
     <main className="relative w-full h-screen overflow-hidden bg-gradient-to-br from-gray-900 to-black">
       {/* Wallet button for desktop */}
@@ -773,6 +832,13 @@ export default function Home() {
           Built by Avail
         </span>
       </a>
+
+      {renderNexusBalances()}
+      {connected && (
+        <div className="w-full max-w-md mt-4">
+          <BridgeTokens onSuccess={refreshBalances} />
+        </div>
+      )}
 
     </main>
   );

@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { Card, CardBody, Button, Divider, CardFooter } from '@nextui-org/react';
+import { Card, CardBody, Button, Divider, CardFooter, Input, Select, SelectItem } from '@nextui-org/react';
 import { ChevronRightIcon, ChevronLeftIcon, ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import GraphControls from './GraphControls';
 import { LensReputationScore } from '../types/network';
+import { bridgeTokens, getUnifiedBalances } from '../lib/nexus';
 
 interface DashboardProps {
   selectedNode: {
@@ -18,6 +19,10 @@ interface DashboardProps {
   onNetworkSwitch?: (network: string) => void;
 }
 
+// Define supported types
+type SUPPORTED_TOKENS = 'ETH' | 'USDC' | 'USDT';
+type SUPPORTED_CHAINS_IDS = 1 | 10 | 8453 | 42161 | 137 | 43114 | 59144 | 534351 | 11155111 | 84532 | 421614 | 11155420 | 80002 | 43113 | 59141 | 534352;
+
 export default function Dashboard({ 
   selectedNode, 
   networks = [],
@@ -31,6 +36,61 @@ export default function Dashboard({
   const mobileSheetRef = useRef<HTMLDivElement>(null);
   const [autoRotate, setAutoRotate] = useState(true);
   const [rotateSpeed, setRotateSpeed] = useState(0.3);
+  const [bridgeToken, setBridgeToken] = useState<SUPPORTED_TOKENS>('ETH');
+  const [bridgeAmount, setBridgeAmount] = useState('');
+  const [bridgeTargetChain, setBridgeTargetChain] = useState<SUPPORTED_CHAINS_IDS>(1);
+  const [isBridgeLoading, setIsBridgeLoading] = useState(false);
+
+  const supportedTokens = [
+    { value: 'ETH' as SUPPORTED_TOKENS, label: 'Ethereum' },
+    { value: 'USDC' as SUPPORTED_TOKENS, label: 'USD Coin' },
+    { value: 'USDT' as SUPPORTED_TOKENS, label: 'Tether USD' },
+  ];
+
+  const supportedChains = [
+    { value: 1 as SUPPORTED_CHAINS_IDS, label: 'Ethereum Mainnet' },
+    { value: 137 as SUPPORTED_CHAINS_IDS, label: 'Polygon' },
+    { value: 42161 as SUPPORTED_CHAINS_IDS, label: 'Arbitrum' },
+    { value: 10 as SUPPORTED_CHAINS_IDS, label: 'Optimism' },
+    { value: 43114 as SUPPORTED_CHAINS_IDS, label: 'Avalanche' },
+    { value: 8453 as SUPPORTED_CHAINS_IDS, label: 'Base' },
+    { value: 59144 as SUPPORTED_CHAINS_IDS, label: 'Linea' },
+    { value: 534351 as SUPPORTED_CHAINS_IDS, label: 'Scroll' },
+    // Testnet chains
+    { value: 11155111 as SUPPORTED_CHAINS_IDS, label: 'Ethereum Sepolia' },
+    { value: 11155420 as SUPPORTED_CHAINS_IDS, label: 'Optimism Sepolia' },
+    { value: 80002 as SUPPORTED_CHAINS_IDS, label: 'Polygon Amoy' },
+    { value: 421614 as SUPPORTED_CHAINS_IDS, label: 'Arbitrum Sepolia' },
+    { value: 43113 as SUPPORTED_CHAINS_IDS, label: 'Avalanche Fuji' },
+    { value: 84532 as SUPPORTED_CHAINS_IDS, label: 'Base Sepolia' },
+    { value: 59141 as SUPPORTED_CHAINS_IDS, label: 'Linea Sepolia' },
+    { value: 534352 as SUPPORTED_CHAINS_IDS, label: 'Scroll Sepolia' },
+  ];
+
+  const handleBridge = async () => {
+    if (!bridgeToken || !bridgeAmount || !bridgeTargetChain) {
+      alert('Please fill in all fields');
+      return;
+    }
+
+    try {
+      setIsBridgeLoading(true);
+      await bridgeTokens({
+        token: bridgeToken,
+        amount: bridgeAmount,
+        chainId: bridgeTargetChain,
+      });
+      // Clear form after successful bridge
+      setBridgeToken('ETH');
+      setBridgeAmount('');
+      setBridgeTargetChain(1);
+    } catch (error) {
+      console.error('Bridge failed:', error);
+      alert('Bridge operation failed. Please try again.');
+    } finally {
+      setIsBridgeLoading(false);
+    }
+  };
 
   // Auto-open dashboard when a node is selected
   useEffect(() => {
@@ -242,6 +302,58 @@ export default function Dashboard({
                 </Card>
                 )}
 
+                {/* Bridge Section */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-white">Bridge Tokens</h3>
+                  <div className="space-y-4">
+                    <Select
+                      label="Select Token"
+                      placeholder="Choose a token"
+                      selectedKeys={[bridgeToken]}
+                      onChange={(e) => setBridgeToken(e.target.value as SUPPORTED_TOKENS)}
+                      className="bg-gray-800/50"
+                    >
+                      {supportedTokens.map((token) => (
+                        <SelectItem key={token.value} value={token.value} className="text-gray-200">
+                          {token.label}
+                        </SelectItem>
+                      ))}
+                    </Select>
+
+                    <Input
+                      type="number"
+                      label="Amount"
+                      placeholder="Enter amount"
+                      value={bridgeAmount}
+                      onChange={(e) => setBridgeAmount(e.target.value)}
+                      className="bg-gray-800/50"
+                    />
+
+                    <Select
+                      label="Target Chain"
+                      placeholder="Choose target chain"
+                      selectedKeys={[bridgeTargetChain.toString()]}
+                      onChange={(e) => setBridgeTargetChain(Number(e.target.value) as SUPPORTED_CHAINS_IDS)}
+                      className="bg-gray-800/50"
+                    >
+                      {supportedChains.map((chain) => (
+                        <SelectItem key={chain.value} value={chain.value} className="text-gray-200">
+                          {chain.label}
+                        </SelectItem>
+                      ))}
+                    </Select>
+
+                    <Button
+                      color="primary"
+                      onClick={handleBridge}
+                      isLoading={isBridgeLoading}
+                      className="w-full bg-gradient-to-r from-[#44D5DE] to-[#EDC7FC] text-black font-semibold"
+                    >
+                      Bridge Tokens
+                    </Button>
+                  </div>
+                </div>
+
                 {/* Network Section */}
                 <div>
                   <h3 className="text-lg font-semibold text-white mb-4">Network</h3>
@@ -369,6 +481,62 @@ export default function Dashboard({
                       </p>
                     </div>
                   )}
+                </div>
+
+                {/* Mobile Bridge Section */}
+                <div className="mt-4 space-y-3">
+                  <h3 className="text-sm font-semibold text-white">Bridge Tokens</h3>
+                  <div className="space-y-3">
+                    <Select
+                      label="Select Token"
+                      placeholder="Choose a token"
+                      selectedKeys={[bridgeToken]}
+                      onChange={(e) => setBridgeToken(e.target.value as SUPPORTED_TOKENS)}
+                      size="sm"
+                      className="bg-gray-800/50"
+                    >
+                      {supportedTokens.map((token) => (
+                        <SelectItem key={token.value} value={token.value} className="text-gray-200">
+                          {token.label}
+                        </SelectItem>
+                      ))}
+                    </Select>
+
+                    <Input
+                      type="number"
+                      label="Amount"
+                      placeholder="Enter amount"
+                      value={bridgeAmount}
+                      onChange={(e) => setBridgeAmount(e.target.value)}
+                      size="sm"
+                      className="bg-gray-800/50"
+                    />
+
+                    <Select
+                      label="Target Chain"
+                      placeholder="Choose target chain"
+                      selectedKeys={[bridgeTargetChain.toString()]}
+                      onChange={(e) => setBridgeTargetChain(Number(e.target.value) as SUPPORTED_CHAINS_IDS)}
+                      size="sm"
+                      className="bg-gray-800/50"
+                    >
+                      {supportedChains.map((chain) => (
+                        <SelectItem key={chain.value} value={chain.value} className="text-gray-200">
+                          {chain.label}
+                        </SelectItem>
+                      ))}
+                    </Select>
+
+                    <Button
+                      color="primary"
+                      onClick={handleBridge}
+                      isLoading={isBridgeLoading}
+                      className="w-full bg-gradient-to-r from-[#44D5DE] to-[#EDC7FC] text-black font-semibold"
+                      size="sm"
+                    >
+                      Bridge Tokens
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
