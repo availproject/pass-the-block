@@ -20,7 +20,6 @@
     "@react-three/fiber": "^8.18.0",
     "@tanstack/react-query": "^5.74.4",
     "@wagmi/core": "^2.16.7",
-    "avail-nexus-sdk": "^0.0.5",
     "connectkit": "^1.9.0",
     "ethers": "^6.13.5",
     "framer-motion": "^11.18.2",
