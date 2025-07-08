@@ -86,14 +86,10 @@ Visit [http://localhost:3000](http://localhost:3000) to start building your unif
 
 In Part 1, we're going to build the foundation: a clean Web3 application that displays unified balances across multiple chains. This might seem simple, but it's an important foundation for your users to see all their assets in one place, regardless of which blockchain they're on.
 
-## 🔗 Other Projects
-
-Also check out our Lens Network Immersive Visualization project with a live demo at [lenscollective.me](https://lenscollective.me) to see an interactive 3D social graph visualization!
-
 ## 🤝 Need Help?
 
 - 📖 [Avail Documentation](https://docs.availproject.org)
-- 🔧 [Nexus SDK Documentation](https://docs.availproject.org/nexus)
+- 🔧 [Nexus SDK Documentation](https://docs.availproject.org/api-reference/avail-nexus-sdk)
 - 💬 [Community Discord](https://discord.gg/availproject)
 
 ## ⚖️ License
