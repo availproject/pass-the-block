@@ -10,6 +10,13 @@ declare global {
   }
 }
 
+interface TransferParams {
+  token: string;
+  amount: string;
+  chainId: number;
+  recipient: string;
+}
+
 interface NexusContextType {
   sdk: any; // Replace with actual SDK type when available
   isInitialized: boolean;
@@ -17,6 +24,8 @@ interface NexusContextType {
   isLoading: boolean;
   error: string | null;
   refreshBalances: () => Promise<void>;
+  transfer: (params: TransferParams) => Promise<any>;
+  simulateTransfer: (params: TransferParams) => Promise<any>;
 }
 
 const NexusContext = createContext<NexusContextType | undefined>(undefined);
@@ -40,41 +49,34 @@ export function NexusProvider({ children }: NexusProviderProps) {
     }
   }, [isConnected, isInitialized, isLoading]);
 
-  // Fetch balances after SDK is initialized
-  useEffect(() => {
-    if (isInitialized && sdk) {
-      fetchBalances(sdk);
-    }
-  }, [isInitialized, sdk]);
-
   const initializeSDK = async () => {
     try {
       setIsLoading(true);
       setError(null);
       
-      // Dynamic import to ensure client-side only loading
-      const { NexusSDK } = await import('avail-nexus-sdk');
+      // Dynamic import with updated package name
+      const { NexusSDK } = await import('@avail-project/nexus');
       const nexusSDK = new NexusSDK({ network: 'testnet' });
       
       // Initialize with the wallet provider
       await nexusSDK.initialize(window.ethereum);
       
       // Set up allowance hook for token approvals
-      nexusSDK.setOnAllowanceHook(async ({ allow, sources }: { allow: (allowances: string[]) => void; sources: any[] }) => {
+      nexusSDK.setOnAllowanceHook(async ({ allow, deny, sources }) => {
         console.log('Allowance required for sources:', sources);
         
-        // For Part 1, we'll auto-approve with minimum allowances
-        // In Part 2, we'll build proper approval modals
+        // For tutorial, we'll auto-approve with minimum allowances
+        // In production, show proper approval modals
         const allowances = sources.map(() => 'min');
         allow(allowances);
       });
       
       // Set up intent hook for transaction previews
-      nexusSDK.setOnIntentHook(({ intent, allow }: { intent: any; allow: () => void }) => {
+      nexusSDK.setOnIntentHook(({ intent, allow, deny, refresh }) => {
         console.log('Transaction intent:', intent);
         
-        // For Part 1, we'll auto-approve
-        // In Part 3, we'll build transaction preview modals
+        // For tutorial, we'll auto-approve
+        // In production, show transaction preview modals
         allow();
       });
       
@@ -115,6 +117,71 @@ export function NexusProvider({ children }: NexusProviderProps) {
     await fetchBalances();
   };
 
+  // Transfer function for Part 2
+  const transfer = async (params: TransferParams) => {
+    if (!sdk) {
+      throw new Error('SDK not initialized');
+    }
+    
+    try {
+      console.log('Starting transfer transaction:', params);
+      
+      const result = await sdk.transfer(params);
+      console.log('Transfer transaction result:', result);
+      
+      // Save transaction to history
+      const transaction = {
+        id: Date.now().toString(),
+        type: 'transfer' as const,
+        token: params.token,
+        amount: params.amount,
+        toChain: params.chainId,
+        recipient: params.recipient,
+        status: 'pending' as const,
+        timestamp: new Date(),
+        hash: result.hash || result.transactionHash || undefined
+      };
+      
+      // Store in localStorage
+      const existingHistory = localStorage.getItem('nexus-transfer-transactions');
+      const history = existingHistory ? JSON.parse(existingHistory) : [];
+      history.unshift(transaction);
+      
+      // Keep only last 50 transactions
+      const trimmedHistory = history.slice(0, 50);
+      localStorage.setItem('nexus-transfer-transactions', JSON.stringify(trimmedHistory));
+      
+      // Refresh balances after successful transfer
+      setTimeout(() => {
+        refreshBalances();
+      }, 5000);
+      
+      return result;
+    } catch (error) {
+      console.error('Transfer transaction failed:', error);
+      throw error;
+    }
+  };
+
+  // Simulate transfer transaction for Part 2
+  const simulateTransfer = async (params: TransferParams) => {
+    if (!sdk) {
+      throw new Error('SDK not initialized');
+    }
+    
+    try {
+      console.log('Simulating transfer transaction:', params);
+      
+      const simulation = await sdk.simulateTransfer(params);
+      console.log('Transfer simulation result:', simulation);
+      
+      return simulation;
+    } catch (error) {
+      console.error('Transfer simulation failed:', error);
+      throw error;
+    }
+  };
+
   // Reset state when wallet disconnects
   useEffect(() => {
     if (!isConnected) {
@@ -133,7 +200,9 @@ export function NexusProvider({ children }: NexusProviderProps) {
         balances, 
         isLoading, 
         error,
-        refreshBalances 
+        refreshBalances,
+        transfer,
+        simulateTransfer
       }}
     >
       {children}

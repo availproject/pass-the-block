@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@avail-project/nexus": "^0.1.1",
     "@tanstack/react-query": "^5.81.5",
     "avail-nexus-sdk": "^0.0.5",
     "connectkit": "^1.9.1",

@@ -1,21 +1,22 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Clock, CheckCircle, XCircle, ExternalLink, History } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, ExternalLink, History, Send } from 'lucide-react';
 
-interface BridgeTransaction {
+interface TransferTransaction {
   id: string;
+  type: 'transfer';
   token: string;
   amount: string;
-  fromChain: number;
   toChain: number;
+  recipient: string;
   status: 'pending' | 'completed' | 'failed';
   timestamp: Date;
   hash?: string;
 }
 
-export function BridgeHistory() {
-  const [transactions, setTransactions] = useState<BridgeTransaction[]>([]);
+export function TransferHistory() {
+  const [transactions, setTransactions] = useState<TransferTransaction[]>([]);
   const [showHistory, setShowHistory] = useState(false);
 
   const chains = {
@@ -32,7 +33,7 @@ export function BridgeHistory() {
 
   const loadTransactionHistory = () => {
     try {
-      const savedTransactions = localStorage.getItem('nexus-bridge-transactions');
+      const savedTransactions = localStorage.getItem('nexus-transfer-transactions');
       if (savedTransactions) {
         const parsed = JSON.parse(savedTransactions);
         setTransactions(parsed.map((tx: any) => ({
@@ -41,11 +42,11 @@ export function BridgeHistory() {
         })));
       }
     } catch (error) {
-      console.error('Error loading bridge history:', error);
+      console.error('Error loading transfer history:', error);
     }
   };
 
-  const getStatusIcon = (status: BridgeTransaction['status']) => {
+  const getStatusIcon = (status: TransferTransaction['status']) => {
     switch (status) {
       case 'completed':
         return <CheckCircle className="w-4 h-4 text-green-500" />;
@@ -73,6 +74,10 @@ export function BridgeHistory() {
     return explorer ? `${explorer}/tx/${hash}` : `https://etherscan.io/tx/${hash}`;
   };
 
+  const truncateAddress = (address: string) => {
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
   if (transactions.length === 0) {
     return null;
   }
@@ -82,11 +87,11 @@ export function BridgeHistory() {
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <History className="w-5 h-5 text-slate-600" />
-          <h3 className="text-lg font-semibold text-slate-900">Bridge History</h3>
+          <h3 className="text-lg font-semibold text-slate-900">Transfer History</h3>
         </div>
         <button
           onClick={() => setShowHistory(!showHistory)}
-          className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+          className="text-purple-600 hover:text-purple-700 text-sm font-medium"
         >
           {showHistory ? 'Hide' : 'Show'} History ({transactions.length})
         </button>
@@ -96,7 +101,7 @@ export function BridgeHistory() {
         <div className="bg-white rounded-xl border border-slate-200 p-4">
           <div className="space-y-3">
             {transactions.slice(0, 10).map((tx) => (
-              <div key={tx.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
+              <div key={tx.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                 <div className="flex items-center space-x-3">
                   {getStatusIcon(tx.status)}
                   <div>
@@ -104,7 +109,7 @@ export function BridgeHistory() {
                       {tx.amount} {tx.token}
                     </p>
                     <p className="text-sm text-slate-500">
-                      {getChainName(tx.fromChain)} → {getChainName(tx.toChain)}
+                      To: {truncateAddress(tx.recipient)} on {getChainName(tx.toChain)}
                     </p>
                     <p className="text-xs text-slate-400">
                       {tx.timestamp.toLocaleString()}
@@ -122,7 +127,7 @@ export function BridgeHistory() {
                   </span>
                   {tx.hash && (
                     <a
-                      href={getExplorerUrl(tx.hash, tx.fromChain)}
+                      href={getExplorerUrl(tx.hash, tx.toChain)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-slate-400 hover:text-slate-600 transition-colors"
